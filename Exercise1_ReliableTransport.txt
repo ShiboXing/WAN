@@ -1,0 +1,245 @@
+Exercise 1
+==========
+
+Goal: Construct a basic reliable point-to-point file transfer tool using
+UDP/IP, and evaluate its performance in the presence of packet loss.
+
+As discussed in lecture, your protocol should use a selective repeat strategy
+employing cumulative acknowledgments and explicit negative acknowledgments.
+
+You should work on this assignment in groups of exactly 2 students. Contact us
+if you cannot find a partner and we will arrange one for you.
+
+Your programs should be written using C or C++.
+
+The initial design submission date is Monday, September 13, 2021, at the
+beginning of class.
+The final submission date is Monday, September 20, 2021, 11:00pm.
+
+1. File Transfer Tool Details:
+
+Using the unreliable UDP/IP protocol, you should write a tool that reliably copies
+a file from one machine to another machine.
+
+The tool consists of two programs: 
+	ncp - the sender process.
+	rcv - the receiver process.
+
+In order to perform a file transfer operation, a receiver process (rcv) should be 
+run on the target machine using the following interface: 
+rcv <loss_rate_percent> <port> <env>
+
+<loss_rate_percent> is the loss percentage to emulate for sent packets, e.g.
+                    rcv 10 will randomly drop 10% of packets before sending.
+<port> is the port on which the rcv process will receive incoming packets.
+<env> should be either LAN or WAN to indicate whether the program should use
+      parameters tuned for a local area network (LAN) or wide area network
+      between two chosen sites (WAN).
+
+A sender process (ncp) should be run on the source machine using 
+the following interface:
+ncp <loss_rate_percent> <env> <source_file_name> <dest_file_name>@<ip_address>:<port>
+
+Similarly to the rcv process, <loss_rate_percent> is the loss percentage to
+    emulate for sent packets, and <env> indicates whether LAN or WAN parameters
+    should be used.
+<source_file_name> is the name of the local file on the sender machine to
+                   transfer to the receiver.
+<dest_file_name> is the name to save the file as on the target (receiver) machine.
+<ip_address> is the IP address of the target (receiver) machine.
+<port> is the port on which the target rcv process receives messages (i.e. this
+       should match the port specified for the rcv process)
+
+A receiver process (rcv) should handle an UNLIMITED number of file-transfer 
+operations, but it is allowed to handle one operation at a time (sequence them). 
+If a sender comes along while the receiver is busy, the sender should be blocked 
+until the receiver completes the current transfer. The sender should know that
+it was blocked and report this.
+
+A sender process (npc) handles one operation and then terminates. 
+You can assume that the source file name represents a specific single file.
+
+To check the software, each process (both rcv and npc) should be calling a wrapper
+routine named sendto_dbg instead of the sendto system call. The wrapper routine 
+will allow emulating a specific network loss percentage for the sent packets.
+
+THIS SHOULD BE DONE FOR EVERY SEND OPERATION IN THE CODE (both for the 
+sender and the receiver).
+
+The wrapper routine sendto_dbg has a similar interface to sendto (see man 2 sendto). 
+The sendto_dbg routine will randomly decide to discard packets in order to create 
+additional network message omissions based on the loss rate. 
+An initialization routine, sendto_dbg_init, should be called once, when the
+program is started, to set the loss rate for that program execution. 
+The source for the sendto_dbg and sendto_dbg_init routines is available in Canvas.
+
+Both the sender (ncp) and the receiver (rcv) programs should report two
+statistics every 10 megabytes of data sent/received IN ORDER (all the data
+from the beginning of the file to that point was received with no gaps):
+    1) The total amount of data (in megabytes) successfully transferred so far.
+    2) The average transfer rate of the last 10 megabytes sent/received (in megabits/sec).
+For our purposes, use the base 10 definition: 1 megabyte = 1,000,000 bytes = 8,000,000 bits
+
+At the end of the transfer, both sender and receiver programs should report:
+    1) the size of the file transferred (in megabytes)
+    2) the amount of time required for the transfer (in seconds)
+    3) the average transfer rate (in megabits/sec)
+The sender program should additionally report the total amount of data sent (in
+megabytes), including retransmissions. This metric can help you judge the
+efficiency of your protocol in terms of bandwidth usage. Ideally, you want your
+protocols to have a short total transfer time, high average transfer rate, and
+low bandwidth overhead (ratio of total data sent to actual file size).
+
+2. Evaluating Performance:
+
+We have given you a GENI request rspec that you can use to set up your GENI
+evaluation environment. It includes 2 nodes in one site, and one node in a
+different site. You should choose the 2 sites that you want to use. For your
+experiments, you should use node-0 in the topology as your sender (ncp)
+process. For local area experiments, you will send to node-1, with IP address
+10.0.1.101. For wide-area experiments, you will send to node-2, with IP address
+10.0.2.202.
+
+Implementing a TCP benchmark
+----------------------------
+
+Using the reliable TCP/IP protocol, implement the corresponding t_ncp and t_rcv. 
+These should report the amount of data transferred and the rate, the same way 
+as ncp and rcv programs. The t_rcv is not required to handle multiple senders. 
+It can handle a single sender and then exit.
+
+Local area evaluation
+---------------------
+
+Compare the performance of ncp/rcv to t_ncp/t_rcv by measuring the time it
+takes to copy a 100-Megabyte file from one GENI VM to another GENI VM located
+in the *same* site.
+
+You should run these tests for the ncp/rcv 5 times for each of the following 
+loss rates (0% 1% 5% 10% 20% 30%), averaging the results for each case. Please graph the 
+results with the X-axis being the loss rate and the Y-axis being the time the copy took. 
+
+Thus, you should turn in results comparing eight experiments:
+1. t_ncp/t_rcv
+2. ncp/rcv with zero loss rate
+3. ncp/rcv with %1 loss rate
+4. ncp/rcv with %5 loss rate
+5. ncp/rcv with %10 loss rate
+6. ncp/rcv with %20 loss rate
+7. ncp/rcv with %30 loss rate
+8. ncp/rcv with zero loss rate, run AT THE SAME TIME with t_ncp/t_rcv
+  (this will evaluate your protocol when COMPETING with TCP)
+
+You should create a table with the results of the experiments and a graph as described above.
+
+Wide area evaluation
+--------------------
+
+Compare the performance of ncp/rcv to t_ncp/t_rcv by measuring the time it
+takes to copy a 100-Megabyte file from one GENI VM to another GENI VM located
+in a *different* site.
+
+You should pick two different InstaGENI sites for this part of the evaluation.
+To make this interesting, you should select sites in different cities, such
+that the roundtrip time between your VMs is at least 10 milliseconds (measure
+using the "ping" utility). You should report the sites you picked and the
+roundtrip time you measured between them in your final report.
+
+To achieve good performance in this evaluation, you will need to re-tune some
+of your parameters (i.e. adjust window size and timeouts). You should
+experiment with different settings for these parameters and select the one that
+gives the best performance. Then, you should repeat the 8 experiments above in
+the wide area environment. Your final report must include a table with the
+results, and a graph, as described above. You should also discuss how you
+performed your parameter tuning and why you selected the window size and
+timeouts that you did.
+
+3. Submission:
+
+Two separate submissions are required.
+
+1) An electronic submission of your initial design. Due Monday September 13 at the beginning 
+of class. You should also bring your initial design document to class on
+September 13 (either print it out or bring a laptop, as we will discuss your
+designs in class).
+
+An initial design document should be a well-written, complete design of your ncp 
+and rcv programs and the protocols used to make it reliable. This includes the main 
+ideas behind your protocol, the internal data structure in each program, the type and 
+structure of the messages used, and the protocol (algorithm) description. 
+It should be 1-2 pages long with diagrams as needed. 
+
+A final design document is required with your final submission. The final
+design document should be updated to reflect any changes made to your initial
+design. Design makes up 20% of the exercise grade. 
+
+2) An electronic submission of all the documents/code described above.
+Due Monday September 20 at 11:00pm. You should make a tar file named exactly as 
+your Pitt ID with all your documents and code (DO NOT include the 100-Megabyte file 
+transferred, core file, object files, or executables) and upload the tar file to Canvas.
+
+The complete submission should include your final design. It should also include 
+a discussion of the performance results you achieved and discuss the comparison 
+of how the protocol worked under different percentages of loss.
+
+The programs should be complete, sound, and well documented. We should be able
+to easily run the local area and wide area variants of your programs WITHOUT
+MODIFYING YOUR CODE. We should be able to run your program with the "LAN"
+commandline option to reproduce your LAN results, and with the "WAN"
+commandline option to reproduce your WAN results.
+
+A makefile that compiles and builds your complete program with clearly documented 
+options (if needed) is required.
+
+Example for creating the tar file:
+
+If your Pitt ID is <pitt_id>, then create a directory named <pitt_id> and copy
+all your source code, makefile, documentation and design in that directory. DO
+NOT copy the 1-Gigabyte file you used for testing your programs or anyx	
+intermediate other files.  
+
+Outside of the <pitt_id> directory run the following command:
+
+tar -cf <pitt_id>.tar <pitt_id>
+
+Failure to comply with submission instructions will result in a lower grade.
+Your grade will include correctness, design, documentation, and, of course,
+efficiency will be considered.
+
+Notes and suggestions:
+----------------------
+
+1. It is highly recommended that you develop and test your programs locally
+   (i.e. on a single machine) before attempting to tune the parameters on a
+   real network. This will (a) be much easier for you, as you don't need to
+   worry about keeping code versions on different machines in sync while you
+   are developing and can easily compare your resulting copied file to the
+   source file, and (b) makes sure your protocol works reasonably well before
+   testing in a shared environment where you might disrupt other users.
+
+2. Note that due to the shared nature of the GENI environment, bandwidth
+   between VMs is limited to 100-Megabits/sec. For a LAN environment today,
+   speeds are typically higher (e.g. 1 Gbps or 10 Gbps for academic/enterprise
+   environments, or more for data center environments). If you want to
+   experiment with a 1 Gbps cluster environment, you can try in the CS elements
+   cluster, but we are not asking you to evaluate your protocol there to avoid
+   issues with your programs conflicting with one another and overloading the
+   network close to the deadline...
+
+3. Packet size should not exceed 1400 Bytes.
+
+4. Experiment with different window sizes. Hint: you should be able to
+   calculate the window size needed to obtain the maximum throughput *with no
+   loss* based on roundtrip time, packet size, and network bandwidth. You
+   should calculate and test this first. But, then think about how loss affects
+   the ability to slide the window forward. How does your window size tuning
+   change when you need to design the protocol to achieve high throughput under
+   up to 30% loss?
+
+5. Check that the received file is identical to the original file (use the
+   "diff" command).
+
+6. In some cases, the file close operation may take a long time to complete.
+   You may exclude this time from your final transfer rate (i.e. stop your
+   timer just before calling fclose()) so that your measurements reflect the
+   network latency rather than the latency to flush the file locally.

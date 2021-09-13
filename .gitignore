@@ -1,10 +1,4 @@
-*
-
-!*.c
-!*.h
-!Makefile
-!*.ppt*
-!*.py
-!.git*
+*.o
+.DS_Store
 
 
