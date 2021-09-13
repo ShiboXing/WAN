@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
         /* Wait for message (NULL timeout = wait forever) */
         num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
         if (num > 0) {
+            // receive ACKS, NACKS
             if (FD_ISSET(sock, &mask)) {
                 from_len = sizeof(from_addr);
                 bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,  
@@ -75,7 +76,9 @@ int main(int argc, char *argv[])
                            (htonl(from_ip) & 0x000000ff),
                            mess_buf);
 
-            } else if (FD_ISSET(0, &mask)) {
+            } 
+            // send packets
+            else if (FD_ISSET(0, &mask)) {
                 bytes = read(0, input_buf, sizeof(input_buf));
                 input_buf[bytes] = '\0';
                 printf( "Read input from stdin: %s\n", input_buf );
