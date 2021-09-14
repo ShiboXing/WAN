@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 
     // packet instance
     struct network_packet pkt;
-    pkt.seq = 999;
+    pkt.seq = "99";
 
     /* Parse commandline args */
     Usage(argc, argv);
@@ -94,9 +94,9 @@ int main(int argc, char *argv[])
         //     }
         // }
 
-        memcpy(mess_buf, (const unsigned char*)&pkt, sizeof(pkt));
-        // mess_buf[sizeof(pkt)] = '\0';
-        sendto_dbg(sock, mess_buf, strlen(mess_buf), 0,
+        // memcpy(mess_buf, (uint8_t**)&pkt, sizeof(pkt));
+        mess_buf[sizeof(pkt)] = '\0';
+        sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
                 (struct sockaddr *)&send_addr, sizeof(send_addr));
     }
 
