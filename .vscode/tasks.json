@@ -5,10 +5,11 @@
             "label": "C/C++: gcc build active file",
             "command": "/usr/bin/gcc",
             "args": [
-                "-g",
-                "${file}",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "${fileDirname}/sendto_dbg.o",
+                "${fileDirname}/${fileBasenameNoExtension}.o"
+                
             ],
             "options": {
                 "cwd": "${fileDirname}"
