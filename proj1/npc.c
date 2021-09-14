@@ -1,4 +1,6 @@
 #include "net_include.h"
+#include "packet.h"
+#include "sendto_dbg.h"
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -22,6 +24,10 @@ int main(int argc, char *argv[])
     int                   num;
     char                  mess_buf[MAX_MESS_LEN];
     char                  input_buf[80];
+
+    // packet instance
+    struct network_packet pkt;
+    pkt.seq = 999;
 
     /* Parse commandline args */
     Usage(argc, argv);
@@ -52,40 +58,46 @@ int main(int argc, char *argv[])
     FD_SET(sock, &read_mask);
     FD_SET((long)0, &read_mask); /* stdin */
 
+
     for(;;)
     {
         /* (Re)set mask */
-        mask = read_mask;
+        // mask = read_mask;
 
-        /* Wait for message (NULL timeout = wait forever) */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
-        if (num > 0) {
-            // receive ACKS, NACKS
-            if (FD_ISSET(sock, &mask)) {
-                from_len = sizeof(from_addr);
-                bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,  
-                          (struct sockaddr *)&from_addr, 
-                          &from_len);
-                mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
-                from_ip = from_addr.sin_addr.s_addr;
+        // /* Wait for message (NULL timeout = wait forever) */
+        // num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
+        // // receive ACKS, NACKS
+        // if (num > 0) {
+        //     if (FD_ISSET(sock, &mask)) {
+        //         from_len = sizeof(from_addr);
+        //         bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,  
+        //                   (struct sockaddr *)&from_addr, 
+        //                   &from_len);
+        //         mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
+        //         from_ip = from_addr.sin_addr.s_addr;
 
-                printf("Received from (%d.%d.%d.%d): %s\n", 
-                           (htonl(from_ip) & 0xff000000)>>24,
-                           (htonl(from_ip) & 0x00ff0000)>>16,
-                           (htonl(from_ip) & 0x0000ff00)>>8,
-                           (htonl(from_ip) & 0x000000ff),
-                           mess_buf);
+        //         printf("Received from (%d.%d.%d.%d): %s\n", 
+        //                    (htonl(from_ip) & 0xff000000)>>24,
+        //                    (htonl(from_ip) & 0x00ff0000)>>16,
+        //                    (htonl(from_ip) & 0x0000ff00)>>8,
+        //                    (htonl(from_ip) & 0x000000ff),
+        //                    mess_buf);
 
-            } 
-            // send packets
-            else if (FD_ISSET(0, &mask)) {
-                bytes = read(0, input_buf, sizeof(input_buf));
-                input_buf[bytes] = '\0';
-                printf( "Read input from stdin: %s\n", input_buf );
-                sendto(sock, input_buf, strlen(input_buf), 0, 
-                       (struct sockaddr *)&send_addr, sizeof(send_addr));
-            }
-        }
+        //     } 
+        //     // send packets
+        //     else if (FD_ISSET(0, &mask)) {
+        //         bytes = read(0, input_buf, sizeof(input_buf));
+        //         input_buf[bytes] = '\0';
+        //         printf( "Read input from stdin: %s\n", input_buf );
+        //         sendto(sock, input_buf, strlen(input_buf), 0, 
+        //                (struct sockaddr *)&send_addr, sizeof(send_addr));
+        //     }
+        // }
+
+        memcpy(mess_buf, (const unsigned char*)&pkt, sizeof(pkt));
+        // mess_buf[sizeof(pkt)] = '\0';
+        sendto_dbg(sock, mess_buf, strlen(mess_buf), 0,
+                (struct sockaddr *)&send_addr, sizeof(send_addr));
     }
 
     return 0;
@@ -104,6 +116,9 @@ static void Usage(int argc, char *argv[]) {
         Print_help();
     }   
     Port = atoi(strtok(NULL, ":"));
+
+    /* set loss rate */ 
+    sendto_dbg_init(0);
 }
 
 static void Print_help() {

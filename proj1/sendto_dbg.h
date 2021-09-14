@@ -1,5 +1,5 @@
-#ifndef CS2520_DBG
-#define CS2520_DBG
+// #ifndef CS2520_DBG
+// #define CS2520_DBG
 
 #include <sys/types.h>
 #include <sys/socket.h> 
@@ -9,5 +9,5 @@ int sendto_dbg(int s, const char *buf, int len, int flags,
 
 void sendto_dbg_init(int percent);
 
-#endif 
+// #endif 
 
