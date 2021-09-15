@@ -1,3 +1,3 @@
 struct network_packet {
-    char* seq;
+    const char* seq;
 };

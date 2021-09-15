@@ -1,4 +1,5 @@
 #include "net_include.h"
+#include "packet.h"
 #include <vector>
 using namespace std;
 static void Usage(int argc, char *argv[]);

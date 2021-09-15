@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sendto_dbg.h"
+#include "packet.h"
 
 static int first_time = 1;
 static int cutoff = 64; /* default is 25% loss */
