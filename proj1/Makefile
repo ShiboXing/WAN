@@ -1,15 +1,15 @@
-CC=gcc
+CC=g++
 CFLAGS = -g -c -Wall -pedantic
 
 all: dbg npc rcv main_npc main_rcv
 debug: dbg npc rcv
 
 dbg: sendto_dbg.o
-	$(CC) $(CFLAGS) sendto_dbg.c
+	$(CC) $(CFLAGS) sendto_dbg.cpp
 npc: npc.o
-	$(CC) $(CFLAGS) npc.c
+	$(CC) $(CFLAGS) npc.cpp
 rcv: rcv.o
-	$(CC) $(CFLAGS) rcv.c 
+	$(CC) $(CFLAGS) rcv.cpp 
 main_npc:
 	$(CC) -o npc sendto_dbg.o npc.o
 main_rcv:
