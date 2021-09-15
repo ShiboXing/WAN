@@ -9,13 +9,19 @@ using namespace std;
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 
+// transfer functions
+void init_send(FILE* payload);
+
 static char *Server_IP;
 static int Port;
 
+static vector<int> buff;
+static vector<int> window;
+static struct sockaddr_in send_addr;
+static struct sockaddr_in from_addr;
+
 int main(int argc, char *argv[])
 {
-    struct sockaddr_in send_addr;
-    struct sockaddr_in from_addr;
     socklen_t from_len;
     struct hostent h_ent;
     struct hostent *p_h_ent;
@@ -25,18 +31,17 @@ int main(int argc, char *argv[])
     int sock;
     fd_set mask;
     fd_set read_mask;
+    char mess_buf[MAX_MESS_LEN];
     int bytes;
     int num;
     int win_size;
-    vector<int> buff;
-    vector<int> window;
 
 
-    // specifications
-    struct network_packet pkt;
-    pkt.seq = "99";
+    // set-up 
     win_size = 6;
 
+    // read file
+    FILE* payload = fopen("./payload/astrill-setup-win.exe", "rb");
 
     /* Parse commandline args */
     Usage(argc, argv);
@@ -97,24 +102,35 @@ int main(int argc, char *argv[])
                        (htonl(from_ip) & 0x000000ff),
                        mess_buf);
             }
-            // send packets
-            else if (FD_ISSET(0, &mask))
-            {
-                bytes = read(0, input_buf, sizeof(input_buf));
-                input_buf[bytes] = '\0';
-                printf("Read input from stdin: %s\n", input_buf);
-                sendto(sock, input_buf, strlen(input_buf), 0,
-                       (struct sockaddr *)&send_addr, sizeof(send_addr));
-            }
+            
+            // else if (FD_ISSET(0, &mask))
+            // {
+            //     bytes = read(0, input_buf, sizeof(input_buf));
+            //     input_buf[bytes] = '\0';
+            //     printf("Read input from stdin: %s\n", input_buf);
+            //     sendto(sock, input_buf, strlen(input_buf), 0,
+            //            (struct sockaddr *)&send_addr, sizeof(send_addr));
+            // }
         } else {
-            // memcpy(mess_buf, (uint8_t**)&pkt, sizeof(pkt));
-            sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
-                    (struct sockaddr *)&send_addr, sizeof(send_addr));
+            init_send(payload);
         }
-
     }
 
+    // wrap up
+    fclose(payload);
     return 0;
+}
+
+void init_send(FILE* payload, int sock) {
+    // read to packet
+    struct net_pkt pkt;
+    fread(&pkt, PKT_SIZE, 1, payload);
+
+    // send packet
+    sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
+        (struct sockaddr *)&send_addr, sizeof(send_addr));
+    
+    return;
 }
 
 /* Read commandline arguments */
