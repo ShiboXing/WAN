@@ -27,13 +27,16 @@ int main(int argc, char *argv[])
     fd_set read_mask;
     int bytes;
     int num;
-    char mess_buf[MAX_MESS_LEN];
-    char input_buf[80];
+    int win_size;
     vector<int> buff;
+    vector<int> window;
 
-    // packet instance
+
+    // specifications
     struct network_packet pkt;
     pkt.seq = "99";
+    win_size = 6;
+
 
     /* Parse commandline args */
     Usage(argc, argv);
@@ -74,7 +77,7 @@ int main(int argc, char *argv[])
         timeout.tv_usec = 100;
 
         /* Wait for message (NULL timeout = wait forever) */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
         // receive ACKS, NACKS
         if (num > 0)
         {
@@ -105,8 +108,7 @@ int main(int argc, char *argv[])
             }
         } else {
             // memcpy(mess_buf, (uint8_t**)&pkt, sizeof(pkt));
-            mess_buf[sizeof(pkt)] = '\0';
-            sendto_dbg(sock, (const char*)&pkt, sizeof(pkt), 0,
+            sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
                     (struct sockaddr *)&send_addr, sizeof(send_addr));
         }
 
