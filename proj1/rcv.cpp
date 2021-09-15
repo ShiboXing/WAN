@@ -70,12 +70,15 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
+                if (bytes == 0) {
+                    continue;
+                }
                 mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
                 from_ip = from_addr.sin_addr.s_addr;
 
                 /* Record time we received this msg */
                 gettimeofday(&last_recv_time, NULL);
-
+                
                 printf("Received from (%d.%d.%d.%d): %s\n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,

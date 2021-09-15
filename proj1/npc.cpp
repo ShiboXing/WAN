@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
     socklen_t from_len;
     struct hostent h_ent;
     struct hostent *p_h_ent;
+    struct timeval timeout;
     int host_num;
     int from_ip;
     int sock;
@@ -31,8 +32,8 @@ int main(int argc, char *argv[])
     vector<int> buff;
 
     // packet instance
-    // struct network_packet pkt;
-    // pkt.seq = "99";
+    struct network_packet pkt;
+    pkt.seq = "99";
 
     /* Parse commandline args */
     Usage(argc, argv);
@@ -63,15 +64,17 @@ int main(int argc, char *argv[])
     /* Set up mask for file descriptors we want to read from */
     FD_ZERO(&read_mask);
     FD_SET(sock, &read_mask);
-    FD_SET((long)0, &read_mask); /* stdin */
+    // FD_SET((long)0, &read_mask); /* stdin */
 
     for (;;)
     {
         /* (Re)set mask */
         mask = read_mask;
 
+        timeout.tv_usec = 100;
+
         /* Wait for message (NULL timeout = wait forever) */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         // receive ACKS, NACKS
         if (num > 0)
         {
@@ -100,12 +103,13 @@ int main(int argc, char *argv[])
                 sendto(sock, input_buf, strlen(input_buf), 0,
                        (struct sockaddr *)&send_addr, sizeof(send_addr));
             }
+        } else {
+            // memcpy(mess_buf, (uint8_t**)&pkt, sizeof(pkt));
+            mess_buf[sizeof(pkt)] = '\0';
+            sendto_dbg(sock, (const char*)&pkt, sizeof(pkt), 0,
+                    (struct sockaddr *)&send_addr, sizeof(send_addr));
         }
 
-        // memcpy(mess_buf, (uint8_t**)&pkt, sizeof(pkt));
-        // mess_buf[sizeof(pkt)] = '\0';
-        // sendto_dbg(sock, (char *)&pkt, sizeof(pkt), 0,
-        //            (struct sockaddr *)&send_addr, sizeof(send_addr));
     }
 
     return 0;
