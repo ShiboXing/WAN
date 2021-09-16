@@ -8,7 +8,7 @@ static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
 
-void init_receive(FILE *payload, net_pkt *rec_buf);
+void init_receive(FILE *payload, char *buf);
 static const struct timeval Zero_time = {0, 0};
 
 static int Port;
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     fd_set read_mask;
     int bytes;
     int num;
-    struct net_pkt mess_buf[PKT_SIZE]; // if this not work, comment it, and use char mess_buf instead
+    char mess_buf[PKT_DT_SIZE]; // if this not work, comment it, and use char mess_buf instead
     //char mess_buf[MAX_MESS_LEN];
     struct timeval timeout;
     struct timeval last_recv_time = {0, 0};
@@ -35,8 +35,14 @@ int main(int argc, char *argv[])
     Usage(argc, argv);
     printf("Listening for messages on port %d\n", Port);
 
-    // write file
-    FILE *payload = fopen("./payload/result.exe", "wb");
+    // open destination
+    FILE *payload = fopen("./rcv_payload/result.exe", "wb");
+    if (payload==NULL) {
+        fputs("open payload error",stderr); 
+        exit (1);
+    }
+    rewind(payload);
+
     /* Open socket for receiving */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
@@ -73,7 +79,7 @@ int main(int argc, char *argv[])
         {
             if (FD_ISSET(sock, &mask))
             {
-                memset(mess_buf, 0, PKT_SIZE);
+                memset(mess_buf, 0, PKT_DT_SIZE);
                 from_len = sizeof(from_addr);
                 bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
                                  (struct sockaddr *)&from_addr,
@@ -81,24 +87,23 @@ int main(int argc, char *argv[])
                 if (bytes == 0)
                 {
                     continue;
-                }
+                }  
                 init_receive(payload, mess_buf);
-                //mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
+                // mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
                 from_ip = from_addr.sin_addr.s_addr;
 
                 /* Record time we received this msg */
                 gettimeofday(&last_recv_time, NULL);
-                char *feedback = "File receive";
                 printf("Received from (%d.%d.%d.%d): %s\n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,
                        (htonl(from_ip) & 0x0000ff00) >> 8,
                        (htonl(from_ip) & 0x000000ff),
-                       feedback);
+                       mess_buf[0]);
 
                 /* Echo message back to sender */
-                sendto(sock, feedback, bytes, 0, (struct sockaddr *)&from_addr,
-                       sizeof(from_addr));
+                // sendto(sock, feedback, bytes, 0, (struct sockaddr *)&from_addr,
+                //        sizeof(from_addr));
             }
         }
         else
@@ -114,13 +119,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    fclose(payload);
     return 0;
 }
-void init_recever(FILE *payload, net_pkt *mess_buf)
+void init_receive(FILE *payload, char *buf)
 {
-
-    fwrite(mess_buf, 1, PKT_SIZE, payload);
-    fclose(payload);
+    struct net_pkt *pkt;
+    pkt = (struct net_pkt*)buf;
+    fwrite(buf, 1, PKT_DT_SIZE, payload);
+    
+    return;
 }
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])

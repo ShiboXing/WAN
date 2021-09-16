@@ -42,12 +42,17 @@ int main(int argc, char *argv[])
     win_size = 6;
 
     // read file
-    FILE* payload = fopen("./payload/astrill-setup-win.exe", "rb");
+    FILE* payload = fopen("./npc_payload/astrill-setup-win.exe", "rb");
+    if (payload==NULL) {
+        fputs("open payload error",stderr); 
+        exit (1);
+    }
+    rewind(payload);
 
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-
+    
     /* Open socket for sending */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
@@ -73,17 +78,14 @@ int main(int argc, char *argv[])
     /* Set up mask for file descriptors we want to read from */
     FD_ZERO(&read_mask);
     FD_SET(sock, &read_mask);
-    // FD_SET((long)0, &read_mask); /* stdin */
 
     for (;;)
     {
         /* (Re)set mask */
         mask = read_mask;
-
         timeout.tv_usec = 100;
 
-        /* Wait for message (NULL timeout = wait forever) */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         // receive ACKS, NACKS
         if (num > 0)
         {
@@ -116,11 +118,13 @@ int main(int argc, char *argv[])
 void init_send(FILE* payload, int sock) {
     // read to packet
     struct net_pkt pkt;
-    fread(&pkt, PKT_SIZE, 1, payload);
-
+    char tmp[PKT_DT_SIZE];
+    fread(tmp, sizeof(tmp), 1, payload);
+    pkt.data = tmp;
     // send packet
     sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
         (struct sockaddr *)&send_addr, sizeof(send_addr));
+
     
     return;
 }
