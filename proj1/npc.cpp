@@ -1,27 +1,31 @@
-#include "net_include.h"
-#include "packet.h"
-#include "sendto_dbg.h"
 #include <vector>
 #include <iostream>
 #include <stdio.h>
+#include <unordered_map>
+
+#include "utils/net_include.h"
+#include "utils/sendto_dbg.h"
+#include "utils/file_helper.h"
 
 using namespace std;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
-
-// transfer functions
-net_pkt fetch_next(FILE* payload);
+static void fill_win();
 
 static char *Server_IP;
 static int Port;
 
-static vector<int> buff;
-static vector<int> window;
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
 static FILE* payload;
 static FILE* payload_end;
+
+// window variables
+static vector<net_pkt> buff;
+static vector<net_pkt> window;
+unordered_map<int, char> umap; // labels for packets. unacked = 'u', sent = 's'
+static int pkt_cnt = 0;
 
 
 int main(int argc, char *argv[])
@@ -38,11 +42,6 @@ int main(int argc, char *argv[])
     char mess_buf[MAX_MESS_LEN];
     int bytes;
     int num;
-    int win_size;
-
-
-    // set-up 
-    win_size = 6;
 
     // read file
     payload = fopen("./npc_payload/payload.txt", "rb");
@@ -52,7 +51,7 @@ int main(int argc, char *argv[])
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-
+    
     /* Open socket for sending */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
@@ -105,9 +104,8 @@ int main(int argc, char *argv[])
                        mess_buf);
             }
         } else {
-            struct net_pkt pkt = fetch_next(payload);
-            // char* tmp = (char*) malloc(sizeof(pkt));
-            // memcpy(tmp, &pkt, sizeof(pkt)); // to avoid paddings in buffer!!!
+            struct net_pkt pkt = fetch_next(payload, payload_end);
+            
             // send packet
             sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
                 (struct sockaddr *)&send_addr, sizeof(send_addr));
@@ -122,32 +120,14 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-net_pkt fetch_next(FILE* payload) {
-    // read to packet
-    struct net_pkt pkt;
-    
-    // set packet data size
-    if (ftell(payload_end) - ftell(payload) < PKT_DT_SIZE) { // bound check for last packet
-        pkt.dt_size = ftell(payload_end) - ftell(payload);
-    } else {
-        pkt.dt_size = PKT_DT_SIZE;
-    }
-    // set seq
-    pkt.seq = 1;
-
-    // read the correct # of bytes
-    fread(pkt.data, pkt.dt_size, 1, payload);
-
-    // check if last
-    if (ftell(payload) >= ftell(payload_end)) {
-        pkt.is_end = true;
-        fclose(payload_end);
-        fclose(payload);
-    } else {
-        pkt.is_end = false;
+void fill_win() {
+    while (window.size() < WIN_SIZE) {
+        struct net_pkt pkt = fetch_next(payload, payload_end);
+        pkt.seq = pkt_cnt++;
+        window.push_back(pkt);
+        umap[pkt.seq] = 'u';
     }
 
-    return pkt;
 }
 
 /* Read commandline arguments */

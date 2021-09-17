@@ -1,8 +1,9 @@
 #include <vector>
 #include <iostream>
 #include <stdio.h>
-#include "packet.h"
-#include "net_include.h"
+
+#include "utils/packet.h"
+#include "utils/net_include.h"
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -84,7 +85,6 @@ int main(int argc, char *argv[])
                 if (bytes == 0) continue; // didn't receive anything
             
                 init_receive(payload, mess_buf);
-                // mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
                 from_ip = from_addr.sin_addr.s_addr;
 
                 /* Record time we received this msg */

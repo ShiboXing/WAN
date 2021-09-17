@@ -1,25 +1,26 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++11
 
-all: dbg npc rcv main_npc main_rcv
+all: .utils npc rcv main_npc main_rcv
 
-dbg: sendto_dbg.o
-	$(CC) $(CFLAGS) sendto_dbg.cpp
-npc: npc.o
-	$(CC) $(CFLAGS) npc.cpp
-rcv: rcv.o
+.utils: 
+	$(CC) $(CFLAGS) utils/sendto_dbg.cpp 
+	$(CC) $(CFLAGS) utils/file_helper.cpp 
+npc: 
+	$(CC) $(CFLAGS) npc.cpp 
+rcv: 
 	$(CC) $(CFLAGS) rcv.cpp 
 main_npc:
-	$(CC) -o npc sendto_dbg.o npc.o
+	$(CC) -o npc npc.o file_helper.o sendto_dbg.o
 main_rcv:
-	$(CC) -o rcv sendto_dbg.o rcv.o
+	$(CC) -o rcv rcv.o file_helper.o sendto_dbg.o
 
 run_npc: 
 	./npc localhost:5555
 run_rcv:
 	./rcv 5555
 clean:
-	rm *.o *.out npc rcv rcv_payload/*
+	rm *.o *.out npc rcv rcv_payload/* 
 
-# %.o:    %.c
-# 	$(CC) $(CFLAGS) $*.c
+# %.o:    
+# 	$(CC) $(CFLAGS) $*.cpp
