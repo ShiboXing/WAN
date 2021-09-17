@@ -120,8 +120,10 @@ int main(int argc, char *argv[])
 void init_receive(FILE *payload, char *buf)
 {
     struct net_pkt *pkt = (struct net_pkt*)buf;
-    fwrite((const char*)pkt->data, pkt->dt_size, 1, payload);
-    
+    fwrite((const char*)pkt->data, 1, pkt->dt_size, payload);
+    if (pkt->is_end) {
+        fflush(payload);
+    }
     return;
 }
 
