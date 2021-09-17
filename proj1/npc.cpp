@@ -11,7 +11,7 @@ static void Usage(int argc, char *argv[]);
 static void Print_help();
 
 // transfer functions
-void init_send(FILE* payload, int sock);
+net_pkt fetch_next(FILE* payload);
 
 static char *Server_IP;
 static int Port;
@@ -20,6 +20,9 @@ static vector<int> buff;
 static vector<int> window;
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
+static FILE* payload;
+static FILE* payload_end;
+
 
 int main(int argc, char *argv[])
 {
@@ -42,17 +45,14 @@ int main(int argc, char *argv[])
     win_size = 6;
 
     // read file
-    FILE* payload = fopen("./npc_payload/astrill-setup-win.exe", "rb");
-    if (payload==NULL) {
-        fputs("open payload error",stderr); 
-        exit (1);
-    }
-    rewind(payload);
+    payload = fopen("./npc_payload/payload.txt", "rb");
+    payload_end = fopen("./npc_payload/payload.txt", "rb");
+    fseek(payload_end,0,SEEK_END); // get end pointer
 
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-    
+
     /* Open socket for sending */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
@@ -68,13 +68,12 @@ int main(int argc, char *argv[])
         printf("udp_client: gethostbyname error.\n");
         exit(1);
     }
+    
     memcpy(&h_ent, p_h_ent, sizeof(h_ent));
     memcpy(&host_num, h_ent.h_addr_list[0], sizeof(host_num));
-
     send_addr.sin_family = AF_INET;
     send_addr.sin_addr.s_addr = host_num;
     send_addr.sin_port = htons(Port);
-
     /* Set up mask for file descriptors we want to read from */
     FD_ZERO(&read_mask);
     FD_SET(sock, &read_mask);
@@ -106,27 +105,49 @@ int main(int argc, char *argv[])
                        mess_buf);
             }
         } else {
-            init_send(payload, sock);
+            struct net_pkt pkt = fetch_next(payload);
+            // char* tmp = (char*) malloc(sizeof(pkt));
+            // memcpy(tmp, &pkt, sizeof(pkt)); // to avoid paddings in buffer!!!
+            // send packet
+            sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
+                (struct sockaddr *)&send_addr, sizeof(send_addr));
+
+            if (pkt.is_end) { // finish transfering but don't close socket
+                return 0;
+            }
         }
     }
 
     // wrap up
-    fclose(payload);
     return 0;
 }
 
-void init_send(FILE* payload, int sock) {
+net_pkt fetch_next(FILE* payload) {
     // read to packet
     struct net_pkt pkt;
-    char tmp[PKT_DT_SIZE];
-    fread(tmp, sizeof(tmp), 1, payload);
-    pkt.data = tmp;
-    // send packet
-    sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
-        (struct sockaddr *)&send_addr, sizeof(send_addr));
-
     
-    return;
+    // set packet data size
+    if (ftell(payload_end) - ftell(payload) < PKT_DT_SIZE) { // bound check for last packet
+        pkt.dt_size = ftell(payload_end) - ftell(payload);
+    } else {
+        pkt.dt_size = PKT_DT_SIZE;
+    }
+    // set seq
+    pkt.seq = 1;
+
+    // read the correct # of bytes
+    fread(pkt.data, pkt.dt_size, 1, payload);
+
+    // check if last
+    if (ftell(payload) >= ftell(payload_end)) {
+        pkt.is_end = true;
+        fclose(payload_end);
+        fclose(payload);
+    } else {
+        pkt.is_end = false;
+    }
+
+    return pkt;
 }
 
 /* Read commandline arguments */

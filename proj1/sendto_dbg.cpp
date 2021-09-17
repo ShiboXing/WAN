@@ -37,5 +37,5 @@ int sendto_dbg(int s, const char *buf, int len, int flags,
     }
     ret = sendto(s, buf, len, flags, to, tolen);
 
-    return (ret);
+    return 0;
 }

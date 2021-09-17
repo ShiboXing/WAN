@@ -1,9 +1,9 @@
-#include "net_include.h"
-#include "packet.h"
 #include <vector>
 #include <iostream>
 #include <stdio.h>
-using namespace std;
+#include "packet.h"
+#include "net_include.h"
+
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
@@ -12,6 +12,8 @@ void init_receive(FILE *payload, char *buf);
 static const struct timeval Zero_time = {0, 0};
 
 static int Port;
+
+FILE *payload;
 
 int main(int argc, char *argv[])
 {
@@ -24,24 +26,19 @@ int main(int argc, char *argv[])
     fd_set read_mask;
     int bytes;
     int num;
-    char mess_buf[PKT_DT_SIZE]; // if this not work, comment it, and use char mess_buf instead
+    char mess_buf[sizeof(net_pkt)]; // if this not work, comment it, and use char mess_buf instead
     //char mess_buf[MAX_MESS_LEN];
     struct timeval timeout;
     struct timeval last_recv_time = {0, 0};
     struct timeval now;
     struct timeval diff_time;
-    vector<int> buff;
+    std::vector<int> buff;
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Listening for messages on port %d\n", Port);
 
     // open destination
-    FILE *payload = fopen("./rcv_payload/result.exe", "wb");
-    if (payload==NULL) {
-        fputs("open payload error",stderr); 
-        exit (1);
-    }
-    rewind(payload);
+    payload = fopen("./rcv_payload/payload.txt", "wb");
 
     /* Open socket for receiving */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -74,32 +71,29 @@ int main(int argc, char *argv[])
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
         if (num > 0)
         {
             if (FD_ISSET(sock, &mask))
             {
                 memset(mess_buf, 0, PKT_DT_SIZE);
                 from_len = sizeof(from_addr);
-                bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
+                bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                if (bytes == 0)
-                {
-                    continue;
-                }  
+                if (bytes == 0) continue; // didn't receive anything
+            
                 init_receive(payload, mess_buf);
                 // mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
                 from_ip = from_addr.sin_addr.s_addr;
 
                 /* Record time we received this msg */
                 gettimeofday(&last_recv_time, NULL);
-                printf("Received from (%d.%d.%d.%d): %s\n",
+                printf("Received from (%d.%d.%d.%d)\n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,
                        (htonl(from_ip) & 0x0000ff00) >> 8,
-                       (htonl(from_ip) & 0x000000ff),
-                       mess_buf[0]);
+                       (htonl(from_ip) & 0x000000ff));
 
                 /* Echo message back to sender */
                 // sendto(sock, feedback, bytes, 0, (struct sockaddr *)&from_addr,
@@ -122,14 +116,15 @@ int main(int argc, char *argv[])
     fclose(payload);
     return 0;
 }
+
 void init_receive(FILE *payload, char *buf)
 {
-    struct net_pkt *pkt;
-    pkt = (struct net_pkt*)buf;
-    fwrite(buf, 1, PKT_DT_SIZE, payload);
+    struct net_pkt *pkt = (struct net_pkt*)buf;
+    fwrite((const char*)pkt->data, pkt->dt_size, 1, payload);
     
     return;
 }
+
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
 {
