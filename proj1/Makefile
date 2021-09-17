@@ -1,8 +1,7 @@
 CC=g++
-CFLAGS = -g -c -Wall -pedantic
+CFLAGS = -g -c -Wall -pedantic -std=c++11
 
 all: dbg npc rcv main_npc main_rcv
-debug: dbg npc rcv
 
 dbg: sendto_dbg.o
 	$(CC) $(CFLAGS) sendto_dbg.cpp
@@ -20,7 +19,7 @@ run_npc:
 run_rcv:
 	./rcv 5555
 clean:
-	rm *.o *.out npc rcv 
+	rm *.o *.out npc rcv rcv_payload/*
 
 # %.o:    %.c
 # 	$(CC) $(CFLAGS) $*.c
