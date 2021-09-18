@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++11
 
-all: .utils npc rcv main_npc main_rcv npc_payload rcv_payload npc_payload/payload.txt
+all: .utils npc rcv main_npc main_rcv npc_payload rcv_payload npc_payload/payload.txt 
 
 .utils: 
 	$(CC) $(CFLAGS) utils/sendto_dbg.cpp 
@@ -26,9 +26,9 @@ run_npc:
 run_rcv:
 	./rcv 5555
 clean_all: clean
-	rm -rf rcv_payload npc_payload
+	rm -rf rcv_payload npc_payload 
 clean:
-	rm -f *.o *.out npc rcv rcv_payload/* 
+	rm -f *.o *.out npc rcv rcv_payload/* 127.0.0.1
 
 
 # %.o:    
