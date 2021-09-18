@@ -4,13 +4,13 @@
 
 #include "utils/packet.h"
 #include "utils/net_include.h"
-#include "utils/sender_adrr.h"
+#include "utils/sender_info.h"
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
-void save_sender_information(npc_addr *npc, int &from_ip);
-void init_receive(FILE *payload, char *buf);
+void wr_npc(npc_addr *npc, int &from_ip);
+void init_receive(FILE *payload, struct net_pkt* pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
 
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         if (num > 0)
         {
             if (FD_ISSET(sock, &mask))
@@ -87,23 +87,23 @@ int main(int argc, char *argv[])
                                  &from_len);
                 if (bytes == 0)
                     continue; // didn't receive anything
-
-                init_receive(payload, mess_buf);
+                struct net_pkt *pkt = (struct net_pkt *)mess_buf;
+                init_receive(payload, pkt);
                 from_ip = from_addr.sin_addr.s_addr;
 
                 /* Record time we received this msg */
                 gettimeofday(&last_recv_time, NULL);
 
-                // printf("Received from (%d.%d.%d.%d)\n",
-                //        (htonl(from_ip) & 0xff000000) >> 24,
-                //        (htonl(from_ip) & 0x00ff0000) >> 16,
-                //        (htonl(from_ip) & 0x0000ff00) >> 8,
-                //        (htonl(from_ip) & 0x000000ff));
+                printf("Received from npc (%d.%d.%d.%d) pkt.seq: %lld\n",
+                       (htonl(from_ip) & 0xff000000) >> 24,
+                       (htonl(from_ip) & 0x00ff0000) >> 16,
+                       (htonl(from_ip) & 0x0000ff00) >> 8,
+                       (htonl(from_ip) & 0x000000ff), pkt->seq);
 
-                //std::string ip_location = convertToString(format_ip, sizeof(format_ip) / sizeof(char));
+
 
                 npc.from_addr = from_addr;
-                npc.is = true;
+                npc.blked = true;
 
                 /* Echo message back to sender */
                 // sendto(sock, feedback, bytes, 0, (struct sockaddr *)&from_addr,
@@ -112,12 +112,10 @@ int main(int argc, char *argv[])
         }
         else
         {
-            if (npc.is)
-            {
-                npc_addr *p = &npc;
-
-                save_sender_information(p, from_ip);
-            }
+            // if (npc.blked)
+            // {
+            //     wr_npc(&npc, from_ip);
+            // }
 
             printf("timeout...nothing received for 10 seconds.\n");
             gettimeofday(&now, NULL);
@@ -144,28 +142,25 @@ int main(int argc, char *argv[])
 //     }
 //     return s;
 // }
-void save_sender_information(npc_addr *p, int &from_ip)
+void wr_npc(npc_addr *p, int &from_ip)
 {
     char format_ip[100];
-    std::sprintf(format_ip, "./%d.%d.%d.%d",
+    printf("sender %d.%d.%d.%d pid: %d, blocked",
                  (htonl(from_ip) & 0xff000000) >> 24,
                  (htonl(from_ip) & 0x00ff0000) >> 16,
                  (htonl(from_ip) & 0x0000ff00) >> 8,
-                 (htonl(from_ip) & 0x000000ff));
+                 (htonl(from_ip) & 0x000000ff), -1);
 
-    FILE *sender_file = fopen(format_ip, "wb");
-
-    char data[sizeof(p)];
-    memcpy(data, p, sizeof(p));
-    fwrite(data, 1, sizeof(data), sender_file);
-    fclose(sender_file);
-
-    //test_result();
+    FILE *npc_info = fopen(format_ip, "wb");
+    char data[sizeof(npc_addr)];
+    memcpy(data, p, sizeof(npc_addr));
+    fwrite(data, sizeof(data), 1, npc_info);
+    fflush(npc_info);
+    fclose(npc_info);
 }
 
-void init_receive(FILE *payload, char *buf)
+void init_receive(FILE *payload, net_pkt* pkt)
 {
-    struct net_pkt *pkt = (struct net_pkt *)buf;
     fwrite((const char *)pkt->data, 1, pkt->dt_size, payload);
     if (pkt->is_end)
     {

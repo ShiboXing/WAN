@@ -2,6 +2,7 @@
 struct npc_addr
 {
     sockaddr_in from_addr;
-    unsigned short int window_size;
-    bool is = false;
+    long w_size;
+    long pid; 
+    bool blked = false;
 };

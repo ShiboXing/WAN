@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     int sock;
     fd_set mask;
     fd_set read_mask;
-    char mess_buf[MAX_MESS_LEN];
+    char mess_buf[sizeof(ack_pkt)];
     int bytes;
     int num;
 
@@ -93,15 +93,15 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                mess_buf[bytes] = '\0'; /* ensure string termination for nice printing to screen */
+                struct ack_pkt* ack_p = (struct ack_pkt*) mess_buf;
                 from_ip = from_addr.sin_addr.s_addr;
 
-                printf("Received from (%d.%d.%d.%d): %s\n",
+                printf("Received from (%d.%d.%d.%d): %lld\n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,
                        (htonl(from_ip) & 0x0000ff00) >> 8,
                        (htonl(from_ip) & 0x000000ff),
-                       mess_buf);
+                       ack_p->seq);
             }
         } else {
             struct net_pkt pkt = fetch_next(payload, payload_end);
@@ -127,7 +127,6 @@ void fill_win() {
         window.push_back(pkt);
         umap[pkt.seq] = 'u';
     }
-
 }
 
 /* Read commandline arguments */
