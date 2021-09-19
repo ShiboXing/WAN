@@ -12,17 +12,18 @@ using namespace std;
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static void fill_win();
+static void print_statistics(timeval &diff_time, double tran_data, double success_trans);
 
 static char *Server_IP;
 static int Port;
 
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
-static FILE* payload;
-static FILE* payload_end;
+static FILE *payload;
+static FILE *payload_end;
 
 // window variables
-static vector<net_pkt*> window;
+static vector<net_pkt *> window;
 // unordered_map<long long, char> umap; // labels for packets. unacked = 'u', sent = 's'
 static long long pkt_cnt = 1;
 long long W_SIZE;
@@ -34,27 +35,36 @@ int main(int argc, char *argv[])
     struct hostent h_ent;
     struct hostent *p_h_ent;
     struct timeval timeout;
+    struct timeval trans_start = {0, 0};
+    struct timeval trans_curr;
+    struct timeval diff_time;
+
     int host_num;
     int from_ip;
     int sock;
     fd_set mask;
     fd_set read_mask;
     char mess_buf[sizeof(ack_pkt)];
-    int bytes;
+    int bytes = 0;
+    double total_trans = 0;
+    double success_trans = 0;
+    double last_record_bytes = 0;
+    bool start_trans = false;
+    long long last_seq = 0;
     int num;
-    long long last_pkt;
+    long long last_pkt = 0;
 
     // read file
     payload = fopen("./npc_payload/payload.txt", "rb");
     payload_end = fopen("./npc_payload/payload.txt", "rb");
-    fseek(payload_end,0,SEEK_END); // get end pointer
+    fseek(payload_end, 0, SEEK_END); // get end pointer
 
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-    W_SIZE = 10; 
+    W_SIZE = 10;
     PID = 6666;
-    
+
     /* Open socket for sending */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
@@ -70,7 +80,7 @@ int main(int argc, char *argv[])
         printf("udp_client: gethostbyname error.\n");
         exit(1);
     }
-    
+
     memcpy(&h_ent, p_h_ent, sizeof(h_ent));
     memcpy(&host_num, h_ent.h_addr_list[0], sizeof(host_num));
     send_addr.sin_family = AF_INET;
@@ -98,31 +108,66 @@ int main(int argc, char *argv[])
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
                 from_ip = from_addr.sin_addr.s_addr;
-                struct ack_pkt* ack_p = (struct ack_pkt*) mess_buf; // parse
-                printf("Received from rcv (%d.%d.%d.%d): seq: %lld %s \n",
-                       (htonl(from_ip) & 0xff000000) >> 24,
-                       (htonl(from_ip) & 0x00ff0000) >> 16,
-                       (htonl(from_ip) & 0x0000ff00) >> 8,
-                       (htonl(from_ip) & 0x000000ff),
-                       ack_p->cum_seq, (ack_p->is_nack ? "NACK" : "ACK"));
+                struct ack_pkt *ack_p = (struct ack_pkt *)mess_buf; // parse
+                // printf("Received from rcv (%d.%d.%d.%d): seq: %lld %s \n",
+                //        (htonl(from_ip) & 0xff000000) >> 24,
+                //        (htonl(from_ip) & 0x00ff0000) >> 16,
+                //        (htonl(from_ip) & 0x0000ff00) >> 8,
+                //        (htonl(from_ip) & 0x000000ff),
+                //        ack_p->cum_seq, (ack_p->is_nack ? "NACK" : "ACK"));
 
-                if (!ack_p->is_nack) {
-                    if (ack_p->cum_seq == last_pkt) return 0; // job is done
-                    while (window.size()!=0 && window[0]->seq <= ack_p->cum_seq) { // dequeue buffer
-                        window.erase(window.begin()); 
+                if (!ack_p->is_nack)
+                {
+                    if (ack_p->cum_seq != last_seq)
+                    {
+                        success_trans += ack_p->data_size;
+                        last_seq = ack_p->cum_seq;
+                    }
+
+                    if (ack_p->cum_seq == last_pkt)
+                    {
+                        gettimeofday(&trans_curr, NULL);
+                        timersub(&trans_curr, &trans_start, &diff_time);
+                        double trans_data = (double)(total_trans - last_record_bytes);
+                        print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+                        return 0; // job is done
+                    }
+
+                    while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
+                    { // dequeue buffer
+                        window.erase(window.begin());
                     }
                 }
             }
-        } else {
-            // send un-acked packets
-            fill_win(); 
-            for(long i=0; i<window.size(); i++) {
-                auto p = window[0];
-                sendto_dbg(sock, (char*)p, sizeof(*p), 0,
-                        (struct sockaddr *)&send_addr, sizeof(send_addr));
-
-                if (p->is_end) last_pkt = p->seq; // record the last pkt for termination
+        }
+        else
+        {
+            if (!start_trans)
+            {
+                start_trans = true;
+                gettimeofday(&trans_start, NULL);
             }
+            // send un-acked packets
+            fill_win();
+            for (long i = 0; i < window.size(); i++)
+            {
+                auto p = window[0];
+                total_trans += MAX_PKT_SIZE;
+                sendto_dbg(sock, (char *)p, sizeof(*p), 0,
+                           (struct sockaddr *)&send_addr, sizeof(send_addr));
+
+                if (p->is_end)
+                    last_pkt = p->seq; // record the last pkt for termination
+            }
+        }
+        if (total_trans - last_record_bytes >= 10 * MEGABYTES)
+        {
+            gettimeofday(&trans_curr, NULL);
+            timersub(&trans_curr, &trans_start, &diff_time);
+            double trans_data = (double)(total_trans - last_record_bytes);
+            print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+            trans_start.tv_sec = trans_curr.tv_sec;
+            last_record_bytes = total_trans;
         }
     }
 
@@ -130,19 +175,28 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void fill_win() {
-    
-    if (window.size() < W_SIZE){
+void fill_win()
+{
+
+    if (window.size() < W_SIZE)
+    {
         int new_amt = W_SIZE - window.size();
-        struct net_pkt* pkt;
-        for (int i = 0; i<new_amt; i++) {
-            pkt = (struct net_pkt*) malloc(sizeof(struct net_pkt));
+        struct net_pkt *pkt;
+        for (int i = 0; i < new_amt; i++)
+        {
+            pkt = (struct net_pkt *)malloc(sizeof(struct net_pkt));
             window.push_back(pkt);
             fetch_next(payload, payload_end, pkt);
             pkt->seq = pkt_cnt++;
             // umap.insert({pkt->seq, 'u'});
         }
     }
+}
+static void print_statistics(timeval &diff_time, double trans_data, double success_trans)
+{
+
+    double rate = ((trans_data / MEGABYTES) * MEGABITS) / (long int)(diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
+    printf("The total amount of %f megabytes data successfully transferred so far.\nThe average transfer rate of the last 10 megabytes sent/received %f megabits/sec.\n\n", success_trans, rate);
 }
 
 /* Read commandline arguments */

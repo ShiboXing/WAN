@@ -11,7 +11,7 @@ static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
 void wr_npc(npc_addr *npc, int &from_ip);
-void init_receive(FILE *payload, struct net_pkt* pkt);
+void init_receive(FILE *payload, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
 
@@ -20,10 +20,10 @@ static int Port;
 FILE *payload;
 
 // data structures
-static std::vector<net_pkt*> window;
+static std::vector<net_pkt *> window;
 static long long cum_seq = 0;
 long long W_SIZE; // for linker
-long long PID; // for linker
+long long PID;    // for linker
 
 int main(int argc, char *argv[])
 {
@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
     fd_set mask;
     fd_set read_mask;
     int bytes;
+    int total_bytes;
     int num;
     char mess_buf[sizeof(net_pkt)];
     struct timeval timeout;
@@ -90,50 +91,58 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                if (bytes == 0) continue; // didn't receive anything
+                if (bytes == 0)
+                    continue;                        // didn't receive anything
                 gettimeofday(&last_recv_time, NULL); // record time of receival
-                from_ip = from_addr.sin_addr.s_addr; 
+                from_ip = from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
                 printf("Received from npc (%d.%d.%d.%d) pkt.seq: %lld\n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,
                        (htonl(from_ip) & 0x0000ff00) >> 8,
                        (htonl(from_ip) & 0x000000ff), pkt->seq);
-                
+
                 /* HANDLE REIVE */
                 struct ack_pkt p;
-                if (pkt->seq <= cum_seq) {
+                if (pkt->seq <= cum_seq)
+                {
                     p.cum_seq = cum_seq; // re-sent the cum_ack
                     p.is_nack = false;
-                    
-                    sendto_dbg(sock, (char*)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
-                           sizeof(from_addr));
-                } else if (pkt->seq == cum_seq + 1) {
+
+                    sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                               sizeof(from_addr));
+                }
+                else if (pkt->seq == cum_seq + 1)
+                {
                     p.cum_seq = cum_seq = pkt->seq;
+                    p.data_size = pkt->dt_size;
                     p.is_nack = false;
-                    
-                    sendto_dbg(sock, (char*)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
-                           sizeof(from_addr)); // send the new cum-ack
-                    init_receive(payload, pkt); //write to disk
-                    
+
+                    sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                               sizeof(from_addr)); // send the new cum-ack
+                    init_receive(payload, pkt);    //write to disk
+
                     // dequeue buffer
-                    while (window.size() != 0 && window.front()->seq == cum_seq + 1) {
+                    while (window.size() != 0 && window.front()->seq == cum_seq + 1)
+                    {
                         p.cum_seq = cum_seq = pkt->seq;
                         p.is_nack = false;
-                        
-                        sendto_dbg(sock, (char*)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
-                                sizeof(from_addr));
-                        window.erase(window.begin()); // delete the buffered pkt
-                        init_receive(payload, pkt); //write to disk
-                    }  
-                } else if (window.size() < pkt->w_size) { // buffer the deferred pkt
-                    window.push_back(pkt);
-                    sort(window.begin(), window.end(), 
-                        [](auto &a, auto &b) -> bool{
-                            return a->seq < b->seq; 
-                    });
-                }
 
+                        sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                                   sizeof(from_addr));
+                        window.erase(window.begin()); // delete the buffered pkt
+                        init_receive(payload, pkt);   //write to disk
+                    }
+                }
+                else if (window.size() < pkt->w_size)
+                { // buffer the deferred pkt
+                    window.push_back(pkt);
+                    sort(window.begin(), window.end(),
+                         [](auto &a, auto &b) -> bool
+                         {
+                             return a->seq < b->seq;
+                         });
+                }
             }
         }
         else
@@ -172,10 +181,10 @@ void wr_npc(npc_addr *p, int &from_ip)
 {
     char format_ip[100];
     printf("sender %d.%d.%d.%d pid: %d, blocked",
-                 (htonl(from_ip) & 0xff000000) >> 24,
-                 (htonl(from_ip) & 0x00ff0000) >> 16,
-                 (htonl(from_ip) & 0x0000ff00) >> 8,
-                 (htonl(from_ip) & 0x000000ff), -1);
+           (htonl(from_ip) & 0xff000000) >> 24,
+           (htonl(from_ip) & 0x00ff0000) >> 16,
+           (htonl(from_ip) & 0x0000ff00) >> 8,
+           (htonl(from_ip) & 0x000000ff), -1);
 
     FILE *npc_info = fopen(format_ip, "wb");
     char data[sizeof(npc_addr)];
@@ -185,7 +194,7 @@ void wr_npc(npc_addr *p, int &from_ip)
     fclose(npc_info);
 }
 
-void init_receive(FILE *payload, net_pkt* pkt)
+void init_receive(FILE *payload, net_pkt *pkt)
 {
     fwrite((const char *)pkt->data, 1, pkt->dt_size, payload);
     if (pkt->is_end)
