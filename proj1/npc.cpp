@@ -50,7 +50,6 @@ int main(int argc, char *argv[])
     double success_trans = 0;
     double last_record_bytes = 0;
     bool start_trans = false;
-    long long last_seq = 0;
     int num;
     long long last_pkt = 0;
 
@@ -109,21 +108,9 @@ int main(int argc, char *argv[])
                                  &from_len);
                 from_ip = from_addr.sin_addr.s_addr;
                 struct ack_pkt *ack_p = (struct ack_pkt *)mess_buf; // parse
-                // printf("Received from rcv (%d.%d.%d.%d): seq: %lld %s \n",
-                //        (htonl(from_ip) & 0xff000000) >> 24,
-                //        (htonl(from_ip) & 0x00ff0000) >> 16,
-                //        (htonl(from_ip) & 0x0000ff00) >> 8,
-                //        (htonl(from_ip) & 0x000000ff),
-                //        ack_p->cum_seq, (ack_p->is_nack ? "NACK" : "ACK"));
 
                 if (!ack_p->is_nack)
                 {
-                    if (ack_p->cum_seq != last_seq)
-                    {
-                        success_trans += ack_p->data_size;
-                        last_seq = ack_p->cum_seq;
-                    }
-
                     if (ack_p->cum_seq == last_pkt)
                     {
                         gettimeofday(&trans_curr, NULL);
@@ -136,6 +123,7 @@ int main(int argc, char *argv[])
                     while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
                     { // dequeue buffer
                         window.erase(window.begin());
+                        success_trans += ack_p->data_size;
                     }
                 }
             }
@@ -152,7 +140,7 @@ int main(int argc, char *argv[])
             for (long i = 0; i < window.size(); i++)
             {
                 auto p = window[0];
-                total_trans += MAX_PKT_SIZE;
+                total_trans += sizeof(*p);
                 sendto_dbg(sock, (char *)p, sizeof(*p), 0,
                            (struct sockaddr *)&send_addr, sizeof(send_addr));
 
