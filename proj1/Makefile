@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS = -g -c -Wall -pedantic -std=c++11
+CFLAGS = -g -c -Wall -pedantic -std=c++14
 
 all: .utils npc rcv main_npc main_rcv npc_payload rcv_payload npc_payload/payload.txt 
 
@@ -19,7 +19,7 @@ npc_payload:
 rcv_payload:
 	mkdir rcv_payload
 npc_payload/payload.txt:
-	python gen_file/gen_file.py -f npc_payload/payload.txt -b 100000000
+	python gen_file/gen_file.py -f npc_payload/payload.txt -b 10000000
 
 run_npc: 
 	./npc localhost:5555

@@ -2,5 +2,5 @@
 #include "packet.h"
 
 // transfer functions
-net_pkt fetch_next(FILE* f, FILE* f_end);
+void fetch_next(FILE* f, FILE* f_end, struct net_pkt* pkt);
 

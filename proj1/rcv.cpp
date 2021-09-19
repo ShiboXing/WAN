@@ -4,6 +4,7 @@
 
 #include "utils/packet.h"
 #include "utils/net_include.h"
+#include "utils/sendto_dbg.h"
 #include "utils/sender_info.h"
 
 static void Usage(int argc, char *argv[]);
@@ -14,9 +15,15 @@ void init_receive(FILE *payload, struct net_pkt* pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
 
+// IO
 static int Port;
-
 FILE *payload;
+
+// data structures
+static std::vector<net_pkt*> window;
+static long long cum_seq = 0;
+long long W_SIZE; // for linker
+long long PID; // for linker
 
 int main(int argc, char *argv[])
 {
@@ -30,13 +37,11 @@ int main(int argc, char *argv[])
     fd_set read_mask;
     int bytes;
     int num;
-    char mess_buf[sizeof(net_pkt)]; // if this not work, comment it, and use char mess_buf instead
-    //char mess_buf[MAX_MESS_LEN];
+    char mess_buf[sizeof(net_pkt)];
     struct timeval timeout;
     struct timeval last_recv_time = {0, 0};
     struct timeval now;
     struct timeval diff_time;
-    std::vector<int> buff;
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Listening for messages on port %d\n", Port);
@@ -75,7 +80,7 @@ int main(int argc, char *argv[])
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
         if (num > 0)
         {
             if (FD_ISSET(sock, &mask))
@@ -85,29 +90,50 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                if (bytes == 0)
-                    continue; // didn't receive anything
-                struct net_pkt *pkt = (struct net_pkt *)mess_buf;
-                init_receive(payload, pkt);
-                from_ip = from_addr.sin_addr.s_addr;
-
-                /* Record time we received this msg */
-                gettimeofday(&last_recv_time, NULL);
-
+                if (bytes == 0) continue; // didn't receive anything
+                gettimeofday(&last_recv_time, NULL); // record time of receival
+                from_ip = from_addr.sin_addr.s_addr; 
+                struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
                 printf("Received from npc (%d.%d.%d.%d) pkt.seq: %lld\n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,
                        (htonl(from_ip) & 0x0000ff00) >> 8,
                        (htonl(from_ip) & 0x000000ff), pkt->seq);
+                
+                /* HANDLE REIVE */
+                struct ack_pkt p;
+                if (pkt->seq <= cum_seq) {
+                    p.cum_seq = cum_seq; // re-sent the cum_ack
+                    p.is_nack = false;
+                    
+                    sendto_dbg(sock, (char*)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                           sizeof(from_addr));
+                } else if (pkt->seq == cum_seq + 1) {
+                    p.cum_seq = cum_seq = pkt->seq;
+                    p.is_nack = false;
+                    
+                    sendto_dbg(sock, (char*)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                           sizeof(from_addr)); // send the new cum-ack
+                    init_receive(payload, pkt); //write to disk
+                    
+                    // dequeue buffer
+                    while (window.size() != 0 && window.front()->seq == cum_seq + 1) {
+                        p.cum_seq = cum_seq = pkt->seq;
+                        p.is_nack = false;
+                        
+                        sendto_dbg(sock, (char*)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                                sizeof(from_addr));
+                        window.erase(window.begin()); // delete the buffered pkt
+                        init_receive(payload, pkt); //write to disk
+                    }  
+                } else if (window.size() < pkt->w_size) { // buffer the deferred pkt
+                    window.push_back(pkt);
+                    sort(window.begin(), window.end(), 
+                        [](auto &a, auto &b) -> bool{
+                            return a->seq < b->seq; 
+                    });
+                }
 
-
-
-                npc.from_addr = from_addr;
-                npc.blked = true;
-
-                /* Echo message back to sender */
-                // sendto(sock, feedback, bytes, 0, (struct sockaddr *)&from_addr,
-                //        sizeof(from_addr));
             }
         }
         else

@@ -5,9 +5,11 @@
             "label": "C/C++: gcc build active file",
             "command": "g++",
             "args": [
+                "-std=c++14",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}",
                 "${fileDirname}/sendto_dbg.o",
+                "${fileDirname}/file_helper.o",
                 "${fileDirname}/${fileBasenameNoExtension}.o"
                 
             ],

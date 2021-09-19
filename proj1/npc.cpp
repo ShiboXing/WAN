@@ -22,11 +22,11 @@ static FILE* payload;
 static FILE* payload_end;
 
 // window variables
-static vector<net_pkt> buff;
-static vector<net_pkt> window;
-unordered_map<int, char> umap; // labels for packets. unacked = 'u', sent = 's'
-static int pkt_cnt = 0;
-
+static vector<net_pkt*> window;
+// unordered_map<long long, char> umap; // labels for packets. unacked = 'u', sent = 's'
+static long long pkt_cnt = 1;
+long long W_SIZE;
+long long PID;
 
 int main(int argc, char *argv[])
 {
@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
     char mess_buf[sizeof(ack_pkt)];
     int bytes;
     int num;
+    long long last_pkt;
 
     // read file
     payload = fopen("./npc_payload/payload.txt", "rb");
@@ -51,6 +52,8 @@ int main(int argc, char *argv[])
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
+    W_SIZE = 10; 
+    PID = 6666;
     
     /* Open socket for sending */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -81,7 +84,8 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask */
         mask = read_mask;
-        timeout.tv_usec = 100;
+        timeout.tv_sec = TIMEOUT_S;
+        timeout.tv_usec = TIMEOUT_MS;
 
         num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         // receive ACKS, NACKS
@@ -93,39 +97,51 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                struct ack_pkt* ack_p = (struct ack_pkt*) mess_buf;
                 from_ip = from_addr.sin_addr.s_addr;
-
-                printf("Received from (%d.%d.%d.%d): %lld\n",
+                struct ack_pkt* ack_p = (struct ack_pkt*) mess_buf; // parse
+                printf("Received from rcv (%d.%d.%d.%d): seq: %lld %s \n",
                        (htonl(from_ip) & 0xff000000) >> 24,
                        (htonl(from_ip) & 0x00ff0000) >> 16,
                        (htonl(from_ip) & 0x0000ff00) >> 8,
                        (htonl(from_ip) & 0x000000ff),
-                       ack_p->seq);
+                       ack_p->cum_seq, (ack_p->is_nack ? "NACK" : "ACK"));
+
+                if (!ack_p->is_nack) {
+                    if (ack_p->cum_seq == last_pkt) return 0; // job is done
+                    while (window.size()!=0 && window[0]->seq <= ack_p->cum_seq) { // dequeue buffer
+                        window.erase(window.begin()); 
+                    }
+                }
             }
         } else {
-            struct net_pkt pkt = fetch_next(payload, payload_end);
-            
-            // send packet
-            sendto_dbg(sock, (char*)&pkt, sizeof(pkt), 0,
-                (struct sockaddr *)&send_addr, sizeof(send_addr));
+            // send un-acked packets
+            fill_win(); 
+            for(long i=0; i<window.size(); i++) {
+                auto p = window[0];
+                sendto_dbg(sock, (char*)p, sizeof(*p), 0,
+                        (struct sockaddr *)&send_addr, sizeof(send_addr));
 
-            if (pkt.is_end) { // finish transfering but don't close socket
-                return 0;
+                if (p->is_end) last_pkt = p->seq; // record the last pkt for termination
             }
         }
     }
 
-    // wrap up
+    // shouldn't invoke
     return 0;
 }
 
 void fill_win() {
-    while (window.size() < WIN_SIZE) {
-        struct net_pkt pkt = fetch_next(payload, payload_end);
-        pkt.seq = pkt_cnt++;
-        window.push_back(pkt);
-        umap[pkt.seq] = 'u';
+    
+    if (window.size() < W_SIZE){
+        int new_amt = W_SIZE - window.size();
+        struct net_pkt* pkt;
+        for (int i = 0; i<new_amt; i++) {
+            pkt = (struct net_pkt*) malloc(sizeof(struct net_pkt));
+            window.push_back(pkt);
+            fetch_next(payload, payload_end, pkt);
+            pkt->seq = pkt_cnt++;
+            // umap.insert({pkt->seq, 'u'});
+        }
     }
 }
 
