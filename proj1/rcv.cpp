@@ -42,7 +42,6 @@ int main(int argc, char *argv[])
     double total_trans = 0;
     double success_trans = 0;
     double last_record_bytes = 0;
-    bool start_rcv = false;
 
     int num;
     char mess_buf[sizeof(net_pkt)];
@@ -105,13 +104,13 @@ int main(int argc, char *argv[])
                 from_ip = from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
                 total_trans += sizeof(*pkt);
+
                 /* HANDLE REIVE */
                 struct ack_pkt p;
                 if (pkt->seq <= cum_seq)
                 {
                     p.cum_seq = cum_seq; // re-sent the cum_ack
                     p.is_nack = false;
-
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr));
                 }
@@ -130,18 +129,15 @@ int main(int argc, char *argv[])
                     {
                         p.cum_seq = cum_seq = pkt->seq;
                         p.is_nack = false;
-
                         sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                    sizeof(from_addr));
                         window.erase(window.begin()); // delete the buffered pkt
-
                         success_trans += pkt->dt_size;
-
                         init_receive(payload, pkt); //write to disk
                     }
                 }
-                else if (window.size() < pkt->w_size)
-                { // buffer the deferred pkt
+                else if (window.size() < pkt->w_size) // gapped 
+                { 
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
                          [](auto &a, auto &b) -> bool
@@ -212,7 +208,7 @@ void init_receive(FILE *payload, net_pkt *pkt)
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
 {
-    if (argc != 2)
+    if (argc != 3)
     {
         Print_help();
     }
@@ -221,6 +217,8 @@ static void Usage(int argc, char *argv[])
     {
         Print_help();
     }
+
+    sendto_dbg_init(atoi(argv[2]));
 }
 
 static void Print_help()

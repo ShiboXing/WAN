@@ -7,12 +7,17 @@
 #include "packet.h"
 
 static int first_time = 1;
-static int cutoff = 64; /* default is 25% loss */
+static int cutoff; /* default is 25% loss */
 
 void sendto_dbg_init(int percent)
 {
     /* percent is in integer form (i.e. 1 = 1%, 5 = 5%) */
     cutoff  = (percent * 0.01 * 0xff);
+    if (cutoff < 0 || cutoff > 100) 
+    {
+        printf("incorrect loss rate");
+        exit(0);
+    }
     printf("\n++++++++++ cutoff value is %d +++++++++\n", cutoff);
 }
 

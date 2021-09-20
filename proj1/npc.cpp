@@ -52,7 +52,6 @@ int main(int argc, char *argv[])
     bool start_trans = false;
     int num;
     long long last_pkt = 0;
-    long long last_seq = 0;
 
     // read file
     payload = fopen("./npc_payload/payload.txt", "rb");
@@ -112,6 +111,11 @@ int main(int argc, char *argv[])
 
                 if (!ack_p->is_nack)
                 {
+                    while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
+                    { // dequeue buffer
+                        window.erase(window.begin());
+                        success_trans += ack_p->data_size;
+                    }
 
                     if (ack_p->cum_seq == last_pkt)
                     {
@@ -120,12 +124,6 @@ int main(int argc, char *argv[])
 
                         print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES);
                         return 0; // job is done
-                    }
-
-                    while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
-                    { // dequeue buffer
-                        window.erase(window.begin());
-                        success_trans += ack_p->data_size;
                     }
                 }
             }
@@ -168,7 +166,6 @@ int main(int argc, char *argv[])
 
 void fill_win()
 {
-
     if (window.size() < W_SIZE)
     {
         int new_amt = W_SIZE - window.size();
@@ -188,7 +185,7 @@ void fill_win()
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
 {
-    if (argc != 2)
+    if (argc != 3)
     {
         Print_help();
     }
@@ -202,7 +199,7 @@ static void Usage(int argc, char *argv[])
     Port = atoi(strtok(NULL, ":"));
 
     /* set loss rate */
-    sendto_dbg_init(0);
+    sendto_dbg_init(atoi(argv[2]));
 }
 
 static void Print_help()

@@ -1,5 +1,6 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
+LR=25 # loss rate
 
 all: .utils npc rcv main_npc main_rcv npc_payload rcv_payload npc_payload/payload.txt 
 
@@ -15,16 +16,16 @@ main_npc:
 main_rcv:
 	$(CC) -o rcv rcv.o file_helper.o sendto_dbg.o
 npc_payload:
-	mkdir npc_payload
+	mkdir npc_payload 
 rcv_payload:
 	mkdir rcv_payload
 npc_payload/payload.txt:
 	python gen_file/gen_file.py -f npc_payload/payload.txt -b 10000000
 
 run_npc: 
-	./npc localhost:5555
+	./npc localhost:5555 $(LR)
 run_rcv:
-	./rcv 5555
+	./rcv 5555 $(LR)
 clean_all: clean
 	rm -rf rcv_payload npc_payload 
 clean:
