@@ -6,11 +6,11 @@
 #include "utils/net_include.h"
 #include "utils/sendto_dbg.h"
 #include "utils/sender_info.h"
+#include "utils/file_helper.h"
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
-static void print_statistics(timeval &diff_time, double tran_data, double success_trans);
 
 void wr_npc(npc_addr *npc, int &from_ip);
 void init_receive(FILE *payload, struct net_pkt *pkt);
@@ -104,11 +104,6 @@ int main(int argc, char *argv[])
                 gettimeofday(&last_recv_time, NULL); // record time of receival
                 from_ip = from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
-                // printf("Received from npc (%d.%d.%d.%d) pkt.seq: %lld\n",
-                //        (htonl(from_ip) & 0xff000000) >> 24,
-                //        (htonl(from_ip) & 0x00ff0000) >> 16,
-                //        (htonl(from_ip) & 0x0000ff00) >> 8,
-                //        (htonl(from_ip) & 0x000000ff), pkt->seq);
                 total_trans += sizeof(*pkt);
                 /* HANDLE REIVE */
                 struct ack_pkt p;
@@ -187,16 +182,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-// std::string convertToString(char *format_ip, int size)
-// {
-//     int i;
-//     std::string s = "";
-//     for (i = 0; i < size; i++)
-//     {
-//         s = format_ip[i];
-//     }
-//     return s;
-// }
 void wr_npc(npc_addr *p, int &from_ip)
 {
     char format_ip[100];
@@ -222,13 +207,6 @@ void init_receive(FILE *payload, net_pkt *pkt)
         fflush(payload);
     }
     return;
-}
-
-static void print_statistics(timeval &diff_time, double trans_data, double success_trans)
-{
-
-    double rate = ((trans_data / MEGABYTES) * MEGABITS) / (long int)(diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
-    printf("The total amount of %f megabytes data successfully transferred so far.\nThe average transfer rate of the last 10 megabytes sent/received %f megabits/sec.\n\n", success_trans, rate);
 }
 
 /* Read commandline arguments */
