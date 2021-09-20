@@ -13,7 +13,7 @@ static void Usage(int argc, char *argv[]);
 static void Print_help();
 static void fill_win();
 static void print_statistics(timeval &diff_time, double tran_data, double success_trans);
-
+static void print_statistics_finish(timeval &diff_time, double trans_data, double success_trans);
 static char *Server_IP;
 static int Port;
 
@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
     struct hostent *p_h_ent;
     struct timeval timeout;
     struct timeval trans_start = {0, 0};
+    struct timeval last_record = {0, 0};
+
     struct timeval trans_curr;
     struct timeval diff_time;
 
@@ -52,6 +54,7 @@ int main(int argc, char *argv[])
     bool start_trans = false;
     int num;
     long long last_pkt = 0;
+    long long last_seq = 0;
 
     // read file
     payload = fopen("./npc_payload/payload.txt", "rb");
@@ -111,12 +114,13 @@ int main(int argc, char *argv[])
 
                 if (!ack_p->is_nack)
                 {
+
                     if (ack_p->cum_seq == last_pkt)
                     {
                         gettimeofday(&trans_curr, NULL);
                         timersub(&trans_curr, &trans_start, &diff_time);
-                        double trans_data = (double)(total_trans - last_record_bytes);
-                        print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+
+                        print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES);
                         return 0; // job is done
                     }
 
@@ -134,6 +138,7 @@ int main(int argc, char *argv[])
             {
                 start_trans = true;
                 gettimeofday(&trans_start, NULL);
+                last_record.tv_sec = trans_start.tv_sec;
             }
             // send un-acked packets
             fill_win();
@@ -151,10 +156,10 @@ int main(int argc, char *argv[])
         if (total_trans - last_record_bytes >= 10 * MEGABYTES)
         {
             gettimeofday(&trans_curr, NULL);
-            timersub(&trans_curr, &trans_start, &diff_time);
+            timersub(&trans_curr, &last_record, &diff_time);
             double trans_data = (double)(total_trans - last_record_bytes);
             print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
-            trans_start.tv_sec = trans_curr.tv_sec;
+            last_record.tv_sec = trans_curr.tv_sec;
             last_record_bytes = total_trans;
         }
     }
@@ -180,6 +185,14 @@ void fill_win()
         }
     }
 }
+
+static void print_statistics_finish(timeval &diff_time, double trans_data, double success_trans)
+{
+    long int time = diff_time.tv_sec + (diff_time.tv_usec / 1000000.0);
+    double rate = ((trans_data / MEGABYTES) * MEGABITS) / time;
+    printf("the size of the file transferred %f megabytes\nThe amount of time required for the transfer is %ld seconds\nthe average transfer rate is %f in megabits/sec\n\n", success_trans, time, rate);
+};
+
 static void print_statistics(timeval &diff_time, double trans_data, double success_trans)
 {
 

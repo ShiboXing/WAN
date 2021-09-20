@@ -10,6 +10,8 @@
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
+static void print_statistics(timeval &diff_time, double tran_data, double success_trans);
+
 void wr_npc(npc_addr *npc, int &from_ip);
 void init_receive(FILE *payload, struct net_pkt *pkt);
 void test_result();
@@ -36,12 +38,18 @@ int main(int argc, char *argv[])
     fd_set mask;
     fd_set read_mask;
     int bytes;
-    int total_bytes;
+
+    double total_trans = 0;
+    double success_trans = 0;
+    double last_record_bytes = 0;
+    bool start_rcv = false;
+
     int num;
     char mess_buf[sizeof(net_pkt)];
     struct timeval timeout;
     struct timeval last_recv_time = {0, 0};
     struct timeval now;
+    struct timeval last_record_time = {0, 0};
     struct timeval diff_time;
     /* Parse commandline args */
     Usage(argc, argv);
@@ -96,12 +104,12 @@ int main(int argc, char *argv[])
                 gettimeofday(&last_recv_time, NULL); // record time of receival
                 from_ip = from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
-                printf("Received from npc (%d.%d.%d.%d) pkt.seq: %lld\n",
-                       (htonl(from_ip) & 0xff000000) >> 24,
-                       (htonl(from_ip) & 0x00ff0000) >> 16,
-                       (htonl(from_ip) & 0x0000ff00) >> 8,
-                       (htonl(from_ip) & 0x000000ff), pkt->seq);
-
+                // printf("Received from npc (%d.%d.%d.%d) pkt.seq: %lld\n",
+                //        (htonl(from_ip) & 0xff000000) >> 24,
+                //        (htonl(from_ip) & 0x00ff0000) >> 16,
+                //        (htonl(from_ip) & 0x0000ff00) >> 8,
+                //        (htonl(from_ip) & 0x000000ff), pkt->seq);
+                total_trans += sizeof(*pkt);
                 /* HANDLE REIVE */
                 struct ack_pkt p;
                 if (pkt->seq <= cum_seq)
@@ -120,8 +128,8 @@ int main(int argc, char *argv[])
 
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr)); // send the new cum-ack
-                    init_receive(payload, pkt);    //write to disk
-
+                    success_trans += pkt->dt_size;
+                    init_receive(payload, pkt); //write to disk
                     // dequeue buffer
                     while (window.size() != 0 && window.front()->seq == cum_seq + 1)
                     {
@@ -131,7 +139,10 @@ int main(int argc, char *argv[])
                         sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                    sizeof(from_addr));
                         window.erase(window.begin()); // delete the buffered pkt
-                        init_receive(payload, pkt);   //write to disk
+
+                        success_trans += pkt->dt_size;
+
+                        init_receive(payload, pkt); //write to disk
                     }
                 }
                 else if (window.size() < pkt->w_size)
@@ -142,6 +153,15 @@ int main(int argc, char *argv[])
                          {
                              return a->seq < b->seq;
                          });
+                }
+                if (total_trans - last_record_bytes >= 10 * MEGABYTES)
+                {
+                    gettimeofday(&now, NULL);
+                    timersub(&now, &last_record_time, &diff_time);
+                    double trans_data = (double)(total_trans - last_record_bytes);
+                    print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+                    last_record_time.tv_sec = now.tv_sec;
+                    last_record_bytes = total_trans;
                 }
             }
         }
@@ -204,6 +224,13 @@ void init_receive(FILE *payload, net_pkt *pkt)
     return;
 }
 
+static void print_statistics(timeval &diff_time, double trans_data, double success_trans)
+{
+
+    double rate = ((trans_data / MEGABYTES) * MEGABITS) / (long int)(diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
+    printf("The total amount of %f megabytes data successfully transferred so far.\nThe average transfer rate of the last 10 megabytes sent/received %f megabits/sec.\n\n", success_trans, rate);
+}
+
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
 {
@@ -238,51 +265,3 @@ static int Cmp_time(struct timeval t1, struct timeval t2)
     else
         return 0;
 }
-// void test_result()
-// {
-//     FILE *pFile;
-//     FILE *payload_end;
-//     long lSize;
-//     char *buffer;
-//     size_t result;
-
-//     pFile = fopen("./127.0.0.1", "rb");
-//     if (pFile == NULL)
-//     {
-//         fputs("File error", stderr);
-//         exit(1);
-//     }
-
-//     // obtain file size:
-//     fseek(pFile, 0, SEEK_END);
-//     lSize = ftell(pFile);
-//     rewind(pFile);
-
-//     // allocate memory to contain the whole file:
-//     buffer = (char *)malloc(sizeof(char) * lSize);
-//     if (buffer == NULL)
-//     {
-//         fputs("Memory error", stderr);
-//         exit(2);
-//     }
-
-//     // copy the file into the buffer:
-//     result = std::fread(buffer, 1, lSize, pFile);
-//     if (result != lSize)
-//     {
-//         fputs("Reading error", stderr);
-//         exit(3);
-//     }
-
-//     /* the whole file is now loaded in the memory buffer. */
-//     struct npc_addr *result_0 = (struct npc_addr *)buffer;
-//     // terminate
-//     int from_ip_1 = result_0->from_addr.sin_addr.s_addr;
-//     printf("Received from (%d.%d.%d.%d)\n",
-//            (htonl(from_ip_1) & 0xff000000) >> 24,
-//            (htonl(from_ip_1) & 0x00ff0000) >> 16,
-//            (htonl(from_ip_1) & 0x0000ff00) >> 8,
-//            (htonl(from_ip_1) & 0x000000ff));
-//     fclose(pFile);
-//     free(buffer);
-// }
