@@ -3,7 +3,7 @@
 #define PKT_DT_SIZE 1371
 #define MAX_PKT_SIZE 1400
 #define TIMEOUT_S 0
-#define TIMEOUT_MS 10000  // microseconds
+#define TIMEOUT_MS 100000 // microseconds
 #define RECORD_TIME 10    //seconds;
 #define MEGABYTES 1000000 // 1 megabytes = 1000000bytes
 #define MEGABITS 8        //1 megabytes = 8 megabits

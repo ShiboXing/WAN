@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-    W_SIZE = 10;
+    W_SIZE = 100;
     PID = 6666;
 
     /* Open socket for sending */
@@ -126,6 +126,17 @@ int main(int argc, char *argv[])
                         return 0; // job is done
                     }
                 }
+                else
+                {
+                    struct net_pkt* pkt_it = *find_if(window.begin(), window.end(), 
+                        [ack_p](struct net_pkt* p) 
+                        {
+                            return p->seq == ack_p->cum_seq;
+                        }
+                    );
+                    sendto_dbg(sock, (char *)pkt_it, sizeof(*pkt_it), 0,
+                           (struct sockaddr *)&send_addr, sizeof(send_addr));
+                }
             }
         }
         else
@@ -140,7 +151,7 @@ int main(int argc, char *argv[])
             fill_win();
             for (long i = 0; i < window.size(); i++)
             {
-                auto p = window[0];
+                auto p = window[i];
                 total_trans += sizeof(*p);
                 sendto_dbg(sock, (char *)p, sizeof(*p), 0,
                            (struct sockaddr *)&send_addr, sizeof(send_addr));
@@ -199,7 +210,7 @@ static void Usage(int argc, char *argv[])
     Port = atoi(strtok(NULL, ":"));
 
     /* set loss rate */
-    sendto_dbg_init(atoi(argv[2]));
+    sendto_dbg_init((int)atoi(argv[2]));
 }
 
 static void Print_help()

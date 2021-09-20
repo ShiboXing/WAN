@@ -20,7 +20,7 @@ npc_payload:
 rcv_payload:
 	mkdir rcv_payload
 npc_payload/payload.txt:
-	python gen_file/gen_file.py -f npc_payload/payload.txt -b 10000000
+	python gen_file/gen_file.py -f npc_payload/payload.txt -b 2000000
 
 run_npc: 
 	./npc localhost:5555 $(LR)

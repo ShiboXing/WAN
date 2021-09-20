@@ -140,10 +140,32 @@ int main(int argc, char *argv[])
                 { 
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
-                         [](auto &a, auto &b) -> bool
-                         {
-                             return a->seq < b->seq;
-                         });
+                        [](auto &a, auto &b) -> bool
+                        {
+                            return a->seq < b->seq;
+                        }
+                    );
+                    
+                    long long lo_ind = -1;    // send gapped NACKs
+                    long long hi_ind = 0;
+                    p.is_nack = true;
+                    while (hi_ind < window.size()) 
+                    {
+                        long long lo, hi;
+                        if (lo_ind == -1) lo = cum_seq;
+                        else lo = window[lo_ind]->seq;
+                        hi = window[hi_ind]->seq;
+
+                        for (long i=lo+1; i<hi; i++) {
+                            p.cum_seq = i;
+                            p.data_size = pkt->w_size;
+                            sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                                   sizeof(from_addr));
+                        }
+
+                        lo_ind++;
+                        hi_ind++;
+                    }
                 }
                 if (total_trans - last_record_bytes >= 10 * MEGABYTES)
                 {

@@ -13,7 +13,7 @@ void sendto_dbg_init(int percent)
 {
     /* percent is in integer form (i.e. 1 = 1%, 5 = 5%) */
     cutoff  = (percent * 0.01 * 0xff);
-    if (cutoff < 0 || cutoff > 100) 
+    if (percent < 0 || percent > 100) 
     {
         printf("incorrect loss rate");
         exit(0);
