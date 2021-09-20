@@ -23,9 +23,11 @@ static FILE *payload_end;
 // window variables
 static vector<net_pkt *> window;
 // unordered_map<long long, char> umap; // labels for packets. unacked = 'u', sent = 's'
+static long long last_pkt = -1;
 static long long pkt_cnt = 1;
 long long W_SIZE;
 long long PID;
+
 
 int main(int argc, char *argv[])
 {
@@ -51,7 +53,6 @@ int main(int argc, char *argv[])
     double last_record_bytes = 0;
     bool start_trans = false;
     int num;
-    long long last_pkt = 0;
 
     // read file
     payload = fopen("./npc_payload/payload.txt", "rb");
@@ -177,7 +178,8 @@ int main(int argc, char *argv[])
 
 void fill_win()
 {
-    if (window.size() < W_SIZE)
+    
+    if (window.size() < W_SIZE && last_pkt == -1)
     {
         int new_amt = W_SIZE - window.size();
         struct net_pkt *pkt;
