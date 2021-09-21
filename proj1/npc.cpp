@@ -23,7 +23,7 @@ static FILE *payload_end;
 
 // window variables
 static vector<net_pkt *> window;
-// unordered_map<long long, char> umap; // labels for packets. unacked = 'u', sent = 's'
+unordered_map<long long, char> umap; // labels for packets. unacked = 'u', sent = 's'
 static long long last_pkt = -1;
 static long long pkt_cnt = 1;
 long long W_SIZE;
@@ -109,13 +109,14 @@ int main(int argc, char *argv[])
                                  &from_len);
                 from_ip = from_addr.sin_addr.s_addr;
                 struct ack_pkt *ack_p = (struct ack_pkt *)mess_buf; // parse
-
+            
                 if (!ack_p->is_nack)
                 {
                     while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
                     { // dequeue buffer
                         window.erase(window.begin());
                         success_trans += ack_p->data_size;
+                        umap.erase(ack_p->cum_seq);
                     }
 
                     if (ack_p->cum_seq == last_pkt)
@@ -136,6 +137,7 @@ int main(int argc, char *argv[])
                                                       });
                     sendto_dbg(sock, (char *)pkt_it, sizeof(*pkt_it), 0,
                                (struct sockaddr *)&send_addr, sizeof(send_addr));
+                    umap[ack_p->cum_seq] = 's';
                 }
             }
         }
@@ -153,8 +155,11 @@ int main(int argc, char *argv[])
             {
                 auto p = window[i];
                 total_trans += sizeof(*p);
-                sendto_dbg(sock, (char *)p, sizeof(*p), 0,
-                           (struct sockaddr *)&send_addr, sizeof(send_addr));
+                if (umap[p->seq] == 'u')
+                    sendto_dbg(sock, (char *)p, sizeof(*p), 0,
+                            (struct sockaddr *)&send_addr, sizeof(send_addr));
+                else
+                    umap[p->seq] = 'u';
 
                 if (p->is_end)
                     last_pkt = p->seq; // record the last pkt for termination
@@ -189,8 +194,8 @@ void fill_win()
             window.push_back(pkt);
             fetch_next(payload, payload_end, pkt);
             pkt->seq = pkt_cnt++;
-            if (ftell(payload) == -1) break; // guard for fclose
-            // umap.insert({pkt->seq, 'u'});
+            if (ftell(payload) == -1) break; // guard for end packet
+            umap[pkt->seq] = 'u';
         }
     }
 }
