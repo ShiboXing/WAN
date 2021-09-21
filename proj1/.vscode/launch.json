@@ -9,7 +9,25 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["localhost:5555", "50"],
+            "args": [
+                "localhost:5555",
+                "50"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "C/C++: gcc build active file"
+        },
+        {
+            "name": "t_npc",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [
+                "localhost:5555"
+            ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
@@ -22,7 +40,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["5555", "75"],
+            "args": [
+                "5555",
+                "75"
+            ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
