@@ -86,9 +86,11 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask and timeout */
         mask = read_mask;
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         if (num > 0)
         {
             if (FD_ISSET(sock, &mask))
@@ -180,7 +182,7 @@ int main(int argc, char *argv[])
                     gettimeofday(&now, NULL);
                     timersub(&now, &last_record_time, &diff_time);
                     double trans_data = (double)(total_trans - last_record_bytes);
-                    print_statistics_finish(diff_time, trans_data, (double)success_trans / MEGABYTES, false);
+                    print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
                     last_record_time.tv_sec = now.tv_sec;
                     last_record_bytes = total_trans;
                 }
@@ -192,7 +194,8 @@ int main(int argc, char *argv[])
             {
                 gettimeofday(&now, NULL);
                 timersub(&now, &trans_start, &diff_time);
-                print_statistics(diff_time, total_trans, (double)success_trans / MEGABYTES);
+                diff_time.tv_sec -= timeout.tv_sec;
+                print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES, false);
                 last_record_time.tv_sec = 0;
                 last_record_time.tv_usec = 0;
                 last_record_bytes = 0;
@@ -203,7 +206,7 @@ int main(int argc, char *argv[])
             //     wr_npc(&npc, from_ip);
             // }
 
-            printf("timeout...nothing received for 10 seconds.\n");
+            printf("timeout...nothing received for 5 seconds.\n");
             gettimeofday(&now, NULL);
             if (Cmp_time(last_recv_time, Zero_time) > 0)
             {
