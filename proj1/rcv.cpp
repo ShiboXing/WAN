@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
     fd_set read_mask;
     int bytes;
 
+    int done = 0;
     double total_trans = 0;
     double success_trans = 0;
     double last_record_bytes = 0;
@@ -52,6 +53,7 @@ int main(int argc, char *argv[])
     struct timeval last_record_time = {0, 0};
     struct timeval trans_start = {0, 0};
     struct timeval diff_time;
+    struct timeval timeout;
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Listening for messages on port %d\n", Port);
@@ -86,16 +88,16 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask and timeout */
         mask = read_mask;
-        timeout.tv_sec = 5;
+        timeout.tv_sec = 10;
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
         if (num > 0)
         {
             if (FD_ISSET(sock, &mask))
             {
-                if (!rcv_start)
+                if (!rcv_start && done == 0)
                 {
                     gettimeofday(&last_record_time, NULL);
                     trans_start.tv_sec = last_record_time.tv_sec;
@@ -112,7 +114,6 @@ int main(int argc, char *argv[])
                 from_ip = from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
                 total_trans += sizeof(*pkt);
-
                 /* HANDLE REIVE */
                 struct ack_pkt p;
                 if (pkt->seq <= cum_seq)
@@ -127,7 +128,10 @@ int main(int argc, char *argv[])
                     p.cum_seq = cum_seq = pkt->seq;
                     p.data_size = pkt->dt_size;
                     p.is_nack = false;
-
+                    if (pkt->is_end)
+                    {
+                        done += 1;
+                    }
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr)); // send the new cum-ack
                     success_trans += pkt->dt_size;
@@ -177,30 +181,33 @@ int main(int argc, char *argv[])
                         hi_ind++;
                     }
                 }
-                if (total_trans - last_record_bytes >= 10 * MEGABYTES)
+                if (done == 0)
+                {
+                    if (total_trans - last_record_bytes >= 10 * MEGABYTES)
+                    {
+                        gettimeofday(&now, NULL);
+                        timersub(&now, &last_record_time, &diff_time);
+                        double trans_data = (double)(total_trans - last_record_bytes);
+                        print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+                        last_record_time.tv_sec = now.tv_sec;
+                        last_record_bytes = total_trans;
+                    }
+                }
+                else if (done == 1 && rcv_start)
                 {
                     gettimeofday(&now, NULL);
-                    timersub(&now, &last_record_time, &diff_time);
-                    double trans_data = (double)(total_trans - last_record_bytes);
-                    print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
-                    last_record_time.tv_sec = now.tv_sec;
-                    last_record_bytes = total_trans;
+                    timersub(&now, &trans_start, &diff_time);
+                    print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES, false);
+                    last_record_time.tv_sec = 0;
+                    last_record_time.tv_usec = 0;
+                    last_record_bytes = 0;
+                    rcv_start = false;
                 }
             }
         }
         else
         {
-            if (rcv_start)
-            {
-                gettimeofday(&now, NULL);
-                timersub(&now, &trans_start, &diff_time);
-                diff_time.tv_sec -= timeout.tv_sec;
-                print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES, false);
-                last_record_time.tv_sec = 0;
-                last_record_time.tv_usec = 0;
-                last_record_bytes = 0;
-                rcv_start = false;
-            }
+
             // if (npc.blked)
             // {
             //     wr_npc(&npc, from_ip);

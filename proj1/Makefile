@@ -18,6 +18,8 @@ PROJECTROOT = ~/project1
 
 all: .utils npc rcv main_npc main_rcv npc_payload rcv_payload npc_payload/payload.txt 
 
+bench: .utils t_npc t_rcv main_t_npc main_t_rcv
+
 .utils: 
 	$(CC) $(CFLAGS) utils/sendto_dbg.cpp 
 	$(CC) $(CFLAGS) utils/file_helper.cpp 
@@ -40,10 +42,25 @@ run_npc:
 	./npc localhost:5555 $(LR)
 run_rcv:
 	./rcv 5555 $(LR)
+
+t_npc:
+	$(CC) $(CFLAGS) t_npc.cpp
+t_rcv:
+	$(CC) $(CFLAGS) t_rcv.cpp
+
+main_t_npc:
+	$(CC) -o t_npc t_npc.o 
+main_t_rcv:
+	$(CC) -o t_rcv t_rcv.o 
+run_t_npc:
+	./t_npc localhost:5555
+run_t_rcv:
+	./t_rcv 5555
+
 clean_all: clean
 	rm -rf rcv_payload npc_payload 
 clean:
-	rm -f *.o *.out npc rcv rcv_payload/* 
+	rm -f *.o *.out npc rcv rcv_payload/*  t_npc t_rcv
 
 upload_node0: # run sender on node0
 	scp -P 25210 -i $(IDENTITYFILE) -r ../proj1 $(USER)@$(NODE0):$(PROJECTROOT)
