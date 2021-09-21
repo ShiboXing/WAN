@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
-LR=5 # loss rate
+LR=50 # loss rate
 
 USER= qil77
 IDENTITYFILE= ~/.ssh/id_geni_ssh_rsa

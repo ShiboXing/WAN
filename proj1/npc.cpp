@@ -178,16 +178,18 @@ int main(int argc, char *argv[])
 void fill_win()
 {
 
-    if (window.size() < W_SIZE && last_pkt == -1)
+    if ((long long)window.size() < W_SIZE && last_pkt == -1)
     {
         int new_amt = W_SIZE - window.size();
         struct net_pkt *pkt;
         for (int i = 0; i < new_amt; i++)
         {
+
             pkt = (struct net_pkt *)malloc(sizeof(struct net_pkt));
             window.push_back(pkt);
             fetch_next(payload, payload_end, pkt);
             pkt->seq = pkt_cnt++;
+            if (ftell(payload) == -1) break; // guard for fclose
             // umap.insert({pkt->seq, 'u'});
         }
     }

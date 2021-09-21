@@ -41,7 +41,7 @@ void print_statistics_finish(timeval &diff_time, double trans_data, double succe
     {
         printf("The total amount of data sent %f megabytes\n\n", (double)trans_data / MEGABYTES);
     }
-};
+}
 
 void print_statistics(timeval &diff_time, double trans_data, double success_trans)
 {

@@ -47,7 +47,6 @@ int main(int argc, char *argv[])
 
     int num;
     char mess_buf[sizeof(net_pkt)];
-    struct timeval timeout;
     struct timeval last_recv_time = {0, 0};
     struct timeval now;
     struct timeval last_record_time = {0, 0};
@@ -87,8 +86,6 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask and timeout */
         mask = read_mask;
-        timeout.tv_sec = 10;
-        timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
         num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
