@@ -1,7 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <stdio.h>
-
+#include <algorithm>
 #include "utils/packet.h"
 #include "utils/net_include.h"
 #include "utils/sendto_dbg.h"
@@ -43,12 +43,15 @@ int main(int argc, char *argv[])
     double success_trans = 0;
     double last_record_bytes = 0;
 
+    bool rcv_start = false;
+
     int num;
     char mess_buf[sizeof(net_pkt)];
     struct timeval timeout;
     struct timeval last_recv_time = {0, 0};
     struct timeval now;
     struct timeval last_record_time = {0, 0};
+    struct timeval trans_start = {0, 0};
     struct timeval diff_time;
     /* Parse commandline args */
     Usage(argc, argv);
@@ -93,6 +96,12 @@ int main(int argc, char *argv[])
         {
             if (FD_ISSET(sock, &mask))
             {
+                if (!rcv_start)
+                {
+                    gettimeofday(&last_record_time, NULL);
+                    trans_start.tv_sec = last_record_time.tv_sec;
+                    rcv_start = true;
+                }
                 from_len = sizeof(from_addr);
                 memset(mess_buf, 0, PKT_DT_SIZE);
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
@@ -136,31 +145,33 @@ int main(int argc, char *argv[])
                         init_receive(payload, pkt); //write to disk
                     }
                 }
-                else if (window.size() < pkt->w_size) // gapped 
-                { 
+                else if (window.size() < pkt->w_size) // gapped
+                {
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
-                        [](auto &a, auto &b) -> bool
-                        {
-                            return a->seq < b->seq;
-                        }
-                    );
-                    
-                    long long lo_ind = -1;    // send gapped NACKs
+                         [](auto &a, auto &b) -> bool
+                         {
+                             return a->seq < b->seq;
+                         });
+
+                    long long lo_ind = -1; // send gapped NACKs
                     long long hi_ind = 0;
                     p.is_nack = true;
-                    while (hi_ind < window.size()) 
+                    while (hi_ind < window.size())
                     {
                         long long lo, hi;
-                        if (lo_ind == -1) lo = cum_seq;
-                        else lo = window[lo_ind]->seq;
+                        if (lo_ind == -1)
+                            lo = cum_seq;
+                        else
+                            lo = window[lo_ind]->seq;
                         hi = window[hi_ind]->seq;
 
-                        for (long i=lo+1; i<hi; i++) {
+                        for (long i = lo + 1; i < hi; i++)
+                        {
                             p.cum_seq = i;
                             p.data_size = pkt->w_size;
                             sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
-                                   sizeof(from_addr));
+                                       sizeof(from_addr));
                         }
 
                         lo_ind++;
@@ -172,7 +183,7 @@ int main(int argc, char *argv[])
                     gettimeofday(&now, NULL);
                     timersub(&now, &last_record_time, &diff_time);
                     double trans_data = (double)(total_trans - last_record_bytes);
-                    print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+                    print_statistics_finish(diff_time, trans_data, (double)success_trans / MEGABYTES, false);
                     last_record_time.tv_sec = now.tv_sec;
                     last_record_bytes = total_trans;
                 }
@@ -180,6 +191,16 @@ int main(int argc, char *argv[])
         }
         else
         {
+            if (rcv_start)
+            {
+                gettimeofday(&now, NULL);
+                timersub(&now, &trans_start, &diff_time);
+                print_statistics(diff_time, total_trans, (double)success_trans / MEGABYTES);
+                last_record_time.tv_sec = 0;
+                last_record_time.tv_usec = 0;
+                last_record_bytes = 0;
+                rcv_start = false;
+            }
             // if (npc.blked)
             // {
             //     wr_npc(&npc, from_ip);

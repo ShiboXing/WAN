@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <unordered_map>
+#include <algorithm>
 
 #include "utils/net_include.h"
 #include "utils/sendto_dbg.h"
@@ -27,7 +28,6 @@ static long long last_pkt = -1;
 static long long pkt_cnt = 1;
 long long W_SIZE;
 long long PID;
-
 
 int main(int argc, char *argv[])
 {
@@ -123,20 +123,19 @@ int main(int argc, char *argv[])
                         gettimeofday(&trans_curr, NULL);
                         timersub(&trans_curr, &trans_start, &diff_time);
 
-                        print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES);
+                        print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES, true);
                         return 0; // job is done
                     }
                 }
                 else
                 {
-                    struct net_pkt* pkt_it = *find_if(window.begin(), window.end(), 
-                        [ack_p](struct net_pkt* p) 
-                        {
-                            return p->seq == ack_p->cum_seq;
-                        }
-                    );
+                    struct net_pkt *pkt_it = *find_if(window.begin(), window.end(),
+                                                      [ack_p](struct net_pkt *p)
+                                                      {
+                                                          return p->seq == ack_p->cum_seq;
+                                                      });
                     sendto_dbg(sock, (char *)pkt_it, sizeof(*pkt_it), 0,
-                           (struct sockaddr *)&send_addr, sizeof(send_addr));
+                               (struct sockaddr *)&send_addr, sizeof(send_addr));
                 }
             }
         }
@@ -178,7 +177,7 @@ int main(int argc, char *argv[])
 
 void fill_win()
 {
-    
+
     if (window.size() < W_SIZE && last_pkt == -1)
     {
         int new_amt = W_SIZE - window.size();
@@ -193,7 +192,6 @@ void fill_win()
         }
     }
 }
-
 
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
