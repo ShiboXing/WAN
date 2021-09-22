@@ -32,12 +32,12 @@ void fetch_next(FILE *f, FILE *f_end, struct net_pkt *pkt)
     }
 }
 
-void print_statistics_finish(timeval &diff_time, double trans_data, double success_trans, bool isNpc)
+void print_statistics_finish(timeval &diff_time, double trans_data, double success_trans, bool isncp)
 {
     long int time = diff_time.tv_sec + (diff_time.tv_usec / 1000000.0);
     double rate = ((trans_data / MEGABYTES) * MEGABITS) / time;
     printf("The size of the file transferred %f megabytes\nThe amount of time required for the transfer is %ld seconds\nThe average transfer rate is %f in megabits/sec\n\n", success_trans, time, rate);
-    if (isNpc)
+    if (isncp)
     {
         printf("The total amount of data sent %f megabytes\n\n", (double)trans_data / MEGABYTES);
     }
@@ -45,6 +45,6 @@ void print_statistics_finish(timeval &diff_time, double trans_data, double succe
 
 void print_statistics(timeval &diff_time, double trans_data, double success_trans)
 {
-    double rate = ((trans_data / MEGABYTES) * MEGABITS) / (long int)(diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
+    double rate = ((trans_data / MEGABYTES) * MEGABITS) / (diff_time.tv_sec + ((double)diff_time.tv_usec / 1000000.0));
     printf("The total amount of %f megabytes data successfully transferred so far.\nThe average transfer rate of the last 10 megabytes sent/received %f megabits/sec.\n\n", success_trans, rate);
 }

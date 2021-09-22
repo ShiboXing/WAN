@@ -56,10 +56,10 @@ If a sender comes along while the receiver is busy, the sender should be blocked
 until the receiver completes the current transfer. The sender should know that
 it was blocked and report this.
 
-A sender process (npc) handles one operation and then terminates. 
+A sender process (ncp) handles one operation and then terminates. 
 You can assume that the source file name represents a specific single file.
 
-To check the software, each process (both rcv and npc) should be calling a wrapper
+To check the software, each process (both rcv and ncp) should be calling a wrapper
 routine named sendto_dbg instead of the sendto system call. The wrapper routine 
 will allow emulating a specific network loss percentage for the sent packets.
 

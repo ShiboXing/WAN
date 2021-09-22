@@ -12,7 +12,7 @@ static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
 
-void wr_npc(npc_addr *npc, int &from_ip);
+void wr_ncp(ncp_addr *ncp, int &from_ip);
 void init_receive(FILE *payload, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
@@ -29,7 +29,7 @@ long long PID;    // for linker
 
 int main(int argc, char *argv[])
 {
-    npc_addr npc;
+    ncp_addr ncp;
     struct sockaddr_in name;
     struct sockaddr_in from_addr;
     int from_ip;
@@ -208,9 +208,9 @@ int main(int argc, char *argv[])
         else
         {
 
-            // if (npc.blked)
+            // if (ncp.blked)
             // {
-            //     wr_npc(&npc, from_ip);
+            //     wr_ncp(&ncp, from_ip);
             // }
 
             printf("timeout...nothing received for 5 seconds.\n");
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void wr_npc(npc_addr *p, int &from_ip)
+void wr_ncp(ncp_addr *p, int &from_ip)
 {
     char format_ip[100];
     printf("sender %d.%d.%d.%d pid: %d, blocked",
@@ -237,12 +237,12 @@ void wr_npc(npc_addr *p, int &from_ip)
            (htonl(from_ip) & 0x0000ff00) >> 8,
            (htonl(from_ip) & 0x000000ff), -1);
 
-    FILE *npc_info = fopen(format_ip, "wb");
-    char data[sizeof(npc_addr)];
-    memcpy(data, p, sizeof(npc_addr));
-    fwrite(data, sizeof(data), 1, npc_info);
-    fflush(npc_info);
-    fclose(npc_info);
+    FILE *ncp_info = fopen(format_ip, "wb");
+    char data[sizeof(ncp_addr)];
+    memcpy(data, p, sizeof(ncp_addr));
+    fwrite(data, sizeof(data), 1, ncp_info);
+    fflush(ncp_info);
+    fclose(ncp_info);
 }
 
 void init_receive(FILE *payload, net_pkt *pkt)
