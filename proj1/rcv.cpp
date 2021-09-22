@@ -29,10 +29,9 @@ static vector<net_pkt *> window;
 static set<string> senders;
 static long long cum_seq = 0;
 long long W_SIZE; // for linker
-int Pid = -1;    
+int Pid = -1;
 int Ip = -1;
 
-    
 int main(int argc, char *argv[])
 {
     ncp_addr ncp;
@@ -105,12 +104,12 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
                                  (struct sockaddr *)&tmp_from_addr,
                                  &from_len);
-                if (bytes == 0) continue;            // didn't receive anything
+                if (bytes == 0)
+                    continue;                        // didn't receive anything
                 gettimeofday(&last_recv_time, NULL); // record time of receival
                 from_ip = tmp_from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse pkt
                 total_trans += sizeof(*pkt);
-
 
                 /************ HANDLE RECEIVE ***************/
                 struct ack_pkt p;
@@ -122,16 +121,16 @@ int main(int argc, char *argv[])
                     from_addr = tmp_from_addr;
                     pd = fopen(pkt->d_fname, "wb"); // open destination
                 }
-                else if(pkt->pid != Pid || from_ip != Ip) // block other sender(s)
+                else if (pkt->pid != Pid || from_ip != Ip) // block other sender(s)
                 {
-                    p.cum_seq = -1; // indicating blocked 
+                    p.cum_seq = -1; // indicating blocked
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&tmp_from_addr,
                                sizeof(tmp_from_addr));
                     wr_ncp(from_ip, pkt->pid);
                 }
 
                 /* OLD PKT */
-                if (pkt->seq <= cum_seq) 
+                if (pkt->seq <= cum_seq)
                 {
                     p.cum_seq = cum_seq; // re-sent the cum_ack
                     p.is_nack = false;
@@ -139,7 +138,7 @@ int main(int argc, char *argv[])
                                sizeof(from_addr));
                 }
                 /* SEQUENTIAL PKT */
-                else if (pkt->seq == cum_seq + 1) 
+                else if (pkt->seq == cum_seq + 1)
                 {
                     p.cum_seq = cum_seq = pkt->seq;
                     p.data_size = pkt->dt_size;
@@ -165,7 +164,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 /* FUTURE PKT */
-                else if ((long long)window.size() < pkt->w_size) 
+                else if ((long long)window.size() < pkt->w_size)
                 {
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
@@ -175,7 +174,7 @@ int main(int argc, char *argv[])
                          });
 
                     // send gapped NACKs
-                    long long lo_ind = -1; 
+                    long long lo_ind = -1;
                     long long hi_ind = 0;
                     p.is_nack = true;
                     while (hi_ind < (long long)window.size())
@@ -200,7 +199,7 @@ int main(int argc, char *argv[])
                     }
                 }
 
-                /************* HANDLE PRINT **************/  
+                /************* HANDLE PRINT **************/
                 if (done == 0) /* MIDWAY */
                 {
                     if (total_trans - last_record_bytes >= 10 * MEGABYTES)
@@ -241,13 +240,14 @@ int main(int argc, char *argv[])
             vector<string> tmp;
             struct dirent *entry;
             DIR *dir = opendir(S_CACHE);
-            while ((entry = readdir(dir)) != NULL) {
+            while ((entry = readdir(dir)) != NULL)
+            {
                 if (entry->d_name[0] == 'n' && entry->d_name[1] == 'c' && entry->d_name[2] == 'p')
                     tmp.push_back(string(entry->d_name));
             }
             sort(tmp.begin(), tmp.end());
             closedir(dir);
-            if (tmp.size() != 0) 
+            if (tmp.size() != 0)
             {
                 strtok(&(tmp[0][0]), "_"); // strip 'ncp'+timestamp prefix
                 Ip = atoi(strtok(NULL, "_"));
@@ -268,11 +268,12 @@ void wr_ncp(int &from_ip, int pid)
            (htonl(from_ip) & 0x00ff0000) >> 16,
            (htonl(from_ip) & 0x0000ff00) >> 8,
            (htonl(from_ip) & 0x000000ff), from_ip, pid);
-    
-    // add to senders, write to file with timestamp for sequence 
-    if (senders.find(to_string(from_ip) + '_' + to_string(pid)) != senders.end()) return;
+
+    // add to senders, write to file with timestamp for sequence
+    if (senders.find(to_string(from_ip) + '_' + to_string(pid)) != senders.end())
+        return;
     senders.insert(to_string(from_ip) + '_' + to_string(pid));
-    FILE *ncp_info = fopen(&((S_CACHE + string("ncp") + to_string(time(0)) + '_' + to_string(from_ip) + '_' + to_string(pid))[0]), "wb"); 
+    FILE *ncp_info = fopen(&((S_CACHE + string("ncp") + to_string(time(0)) + '_' + to_string(from_ip) + '_' + to_string(pid))[0]), "wb");
     fwrite("blocked", sizeof("blocked"), 1, ncp_info);
     fflush(ncp_info);
     fclose(ncp_info);
@@ -299,7 +300,6 @@ static void Usage(int argc, char *argv[])
     }
 
     isLAN = argv[3][0] == 'L';
-
 }
 
 static void Print_help()

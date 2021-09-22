@@ -71,8 +71,8 @@ int main(int argc, char *argv[])
     last_record.tv_sec = trans_start.tv_sec;
     for (;;)
     {
-        fread(data_mess_ptr, sizeof(mess_buf) - sizeof(mess_len), 1, pd);
-        mess_len = strlen(data_mess_ptr) + sizeof(mess_len);
+        int tmp_bytes = fread(data_mess_ptr, 1, sizeof(mess_buf) - sizeof(mess_len), pd);
+        mess_len = tmp_bytes + sizeof(mess_len);
         /* Put message length into beginning of message buffer */
         memcpy(mess_buf, &mess_len, sizeof(mess_len));
 
