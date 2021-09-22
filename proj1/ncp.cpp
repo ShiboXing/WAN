@@ -13,16 +13,19 @@ using namespace std;
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static void fill_win();
+
+// IO
 static char *Server_IP;
 static int Port;
+static int Pid;
 static bool isLAN;
 static char* s_fname;
 static char* d_fname;
-
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
 static FILE *payload;
 static FILE *payload_end;
+
 
 // window variables
 static vector<net_pkt *> window;
@@ -30,7 +33,6 @@ unordered_map<long long, char> umap; // labels for packets. unacked = 'u', sent 
 static long long last_pkt = -1;
 static long long pkt_cnt = 1;
 long long W_SIZE;
-long long PID;
 
 int main(int argc, char *argv[])
 {
@@ -54,6 +56,7 @@ int main(int argc, char *argv[])
     double total_trans = 0;
     double success_trans = 0;
     double last_record_bytes = 0;
+    bool blocked = false;
     bool start_trans = false;
     int num;
 
@@ -65,14 +68,14 @@ int main(int argc, char *argv[])
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-    W_SIZE = 1000;
-    PID = 6666;
+    W_SIZE = 50;
+    Pid = (long long)getpid();
 
     /* Open socket for sending */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
     {
-        perror("udp_client: socket");
+        perror("rcv: socket");
         exit(1);
     }
 
@@ -80,7 +83,7 @@ int main(int argc, char *argv[])
     p_h_ent = gethostbyname(Server_IP);
     if (p_h_ent == NULL)
     {
-        printf("udp_client: gethostbyname error.\n");
+        printf("rcv: gethostbyname error.\n");
         exit(1);
     }
 
@@ -197,6 +200,7 @@ void fill_win()
             window.push_back(pkt);
             fetch_next(payload, payload_end, pkt);
             pkt->seq = pkt_cnt++;
+            pkt->pid = Pid;
             if (ftell(payload) == -1) break; // guard for end packet
             umap[pkt->seq] = 'u';
         }

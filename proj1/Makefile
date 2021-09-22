@@ -40,6 +40,8 @@ ncp_payload:
 	mkdir ncp_payload 
 rcv_payload:
 	mkdir rcv_payload
+sender_cache:
+	mkdir .sender_cache
 ncp_payload/payload.txt:
 	python gen_file/gen_file.py -f ncp_payload/payload.txt -b 3000000
 

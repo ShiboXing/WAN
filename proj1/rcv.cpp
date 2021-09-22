@@ -12,7 +12,7 @@ static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
 
-void wr_ncp(ncp_addr *ncp, int &from_ip);
+void wr_ncp(int &from_ip, int pid);
 void init_receive(FILE *payload, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
@@ -26,7 +26,8 @@ FILE *payload;
 static std::vector<net_pkt *> window;
 static long long cum_seq = 0;
 long long W_SIZE; // for linker
-long long PID;    // for linker
+int Pid = -1;    
+int Ip = -1;
 
 int main(int argc, char *argv[])
 {
@@ -93,7 +94,7 @@ int main(int argc, char *argv[])
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
-        num = select(FD_SETSIZE, &mask, NULL, NULL, NULL);
+        num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         if (num > 0)
         {
             if (FD_ISSET(sock, &mask))
@@ -109,29 +110,46 @@ int main(int argc, char *argv[])
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                if (bytes == 0)
-                    continue;                        // didn't receive anything
+                if (bytes == 0) continue;            // didn't receive anything
                 gettimeofday(&last_recv_time, NULL); // record time of receival
                 from_ip = from_addr.sin_addr.s_addr;
-                struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse
+                struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse pkt
                 total_trans += sizeof(*pkt);
-                /* HANDLE REIVE */
+
+
+                /************ HANDLE RECEIVE ***************/
                 struct ack_pkt p;
-                if (pkt->seq <= cum_seq)
+
+                if (Pid == -1) /* Accept or Block sender */
+                {
+                    Pid = pkt->pid; // record first sender
+                    Ip = from_ip;
+                }
+                else if(pkt->pid != Pid || from_ip != Ip) // block other sender(s)
+                {
+                    p.cum_seq = -1; // indicating blocked 
+                    sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
+                               sizeof(from_addr));
+                    wr_ncp(from_ip, Pid);
+                }
+
+                /* OLD PKT */
+                if (pkt->seq <= cum_seq) 
                 {
                     p.cum_seq = cum_seq; // re-sent the cum_ack
                     p.is_nack = false;
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr));
                 }
-                else if (pkt->seq == cum_seq + 1)
+                /* SEQUENTIAL PKT */
+                else if (pkt->seq == cum_seq + 1) 
                 {
                     p.cum_seq = cum_seq = pkt->seq;
                     p.data_size = pkt->dt_size;
                     p.is_nack = false;
                     if (pkt->is_end)
                     {
-                        done += 1;
+                        done = 1;
                     }
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr)); // send the new cum-ack
@@ -149,7 +167,8 @@ int main(int argc, char *argv[])
                         init_receive(payload, pkt); //write to disk
                     }
                 }
-                else if (window.size() < pkt->w_size) // gapped
+                /* FUTURE PKT */
+                else if (window.size() < pkt->w_size) 
                 {
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
@@ -158,7 +177,8 @@ int main(int argc, char *argv[])
                              return a->seq < b->seq;
                          });
 
-                    long long lo_ind = -1; // send gapped NACKs
+                    // send gapped NACKs
+                    long long lo_ind = -1; 
                     long long hi_ind = 0;
                     p.is_nack = true;
                     while (hi_ind < window.size())
@@ -182,7 +202,9 @@ int main(int argc, char *argv[])
                         hi_ind++;
                     }
                 }
-                if (done == 0)
+
+                /************* HANDLE PRINT **************/  
+                if (done == 0) /* MIDWAY */
                 {
                     if (total_trans - last_record_bytes >= 10 * MEGABYTES)
                     {
@@ -194,7 +216,7 @@ int main(int argc, char *argv[])
                         last_record_bytes = total_trans;
                     }
                 }
-                else if (done == 1 && rcv_start)
+                else if (done == 1 && rcv_start) /* SENDER's COMPLETED */
                 {
                     gettimeofday(&now, NULL);
                     timersub(&now, &trans_start, &diff_time);
@@ -208,12 +230,6 @@ int main(int argc, char *argv[])
         }
         else
         {
-
-            // if (ncp.blked)
-            // {
-            //     wr_ncp(&ncp, from_ip);
-            // }
-
             printf("timeout...nothing received for 5 seconds.\n");
             gettimeofday(&now, NULL);
             if (Cmp_time(last_recv_time, Zero_time) > 0)
@@ -229,19 +245,17 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void wr_ncp(ncp_addr *p, int &from_ip)
+void wr_ncp(int &from_ip, int pid)
 {
     char format_ip[100];
-    printf("sender %d.%d.%d.%d pid: %d, blocked",
+    printf("sender %d.%d.%d.%d pid: %d, is blocked\n",
            (htonl(from_ip) & 0xff000000) >> 24,
            (htonl(from_ip) & 0x00ff0000) >> 16,
            (htonl(from_ip) & 0x0000ff00) >> 8,
-           (htonl(from_ip) & 0x000000ff), -1);
-
-    FILE *ncp_info = fopen(format_ip, "wb");
-    char data[sizeof(ncp_addr)];
-    memcpy(data, p, sizeof(ncp_addr));
-    fwrite(data, sizeof(data), 1, ncp_info);
+           (htonl(from_ip) & 0x000000ff), pid);
+    
+    FILE *ncp_info = fopen(&((S_CACHE + std::to_string(from_ip) + '_' + std::to_string(pid))[0]), "wb");
+    fwrite("blocked", sizeof("blocked"), 1, ncp_info);
     fflush(ncp_info);
     fclose(ncp_info);
 }
@@ -277,7 +291,7 @@ static void Usage(int argc, char *argv[])
 
 static void Print_help()
 {
-    printf("Usage: udp_server <port>\n");
+    printf("Usage: rcv <loss_rate_percent> <port> <env>\n");
     exit(0);
 }
 
