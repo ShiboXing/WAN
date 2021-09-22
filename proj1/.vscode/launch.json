@@ -5,6 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "ncp(tcp)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": ["localhost:5555"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "preLaunchTask": "bench",
+            "miDebuggerPath": "/usr/bin/gdb",
+        },
+        {
+            "name": "rcv(tcp)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": ["5555"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "preLaunchTask": "bench",
+            "miDebuggerPath": "/usr/bin/gdb",
+        },
+        {
             "name": "ncp_1",
             "type": "cppdbg",
             "request": "launch",
@@ -57,6 +85,6 @@
             "MIMode": "gdb",
             "preLaunchTask": "C/C++: gcc build active file",
             "miDebuggerPath": "/usr/bin/gdb"
-        }
+        },
     ]
 }

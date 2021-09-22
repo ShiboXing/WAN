@@ -10,12 +10,12 @@
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static void Clear_sock(int index);
-
 static int Port;
 static int Recv_socks[10];
 static int Valid[10];
 static fd_set Read_mask;
-FILE *payload;
+FILE *pd;
+long long W_SIZE; // for linker
 
 int main(int argc, char *argv[])
 {
@@ -29,13 +29,11 @@ int main(int argc, char *argv[])
     int ret;
     char mess_buf[MAX_PKT_SIZE];
     long on = 1;
-    long long W_SIZE = 0;
 
     double total_trans = 0;
     double success_trans = 0;
     double last_record_bytes = 0;
 
-    struct timeval last_recv_time = {0, 0};
     struct timeval now;
     struct timeval last_record_time = {0, 0};
     struct timeval trans_start = {0, 0};
@@ -46,7 +44,7 @@ int main(int argc, char *argv[])
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Listening for connections on port %d\n", Port);
-    payload = fopen("./rcv_payload/payload1.txt", "wb");
+    pd = fopen("./rcv_pd/pd1.txt", "wb");
 
     /* Open socket to listen for connections */
     listen_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -121,7 +119,7 @@ int main(int argc, char *argv[])
                         rcv_start = true;
                     }
                     bytes_read = 0;
-                    while (bytes_read < sizeof(mess_len))
+                    while (bytes_read < (int)sizeof(mess_len))
                     {
                         ret = recv(Recv_socks[j], &(((char *)&mess_len)[bytes_read]), sizeof(mess_len) - bytes_read, 0);
                         if (ret <= 0)
@@ -135,12 +133,12 @@ int main(int argc, char *argv[])
                             rcv_start = false;
 
                             Clear_sock(j);
-                            fflush(payload);
+                            fflush(pd);
                             break;
                         }
                         bytes_read += ret;
                     }
-                    if (bytes_read < sizeof(mess_len))
+                    if (bytes_read < (int)sizeof(mess_len))
                         continue; /* socket was closed mid-read */
 
                     /* Read full message */
@@ -160,13 +158,13 @@ int main(int argc, char *argv[])
                             rcv_start = false;
 
                             Clear_sock(j);
-                            fflush(payload);
+                            fflush(pd);
                             break;
                         }
                     }
                     if (bytes_read < data_len)
                         continue; /* socket was closed mid-read */
-                    fwrite(mess_buf, 1, sizeof(mess_buf), payload);
+                    fwrite(mess_buf, 1, sizeof(mess_buf), pd);
 
                     total_trans += bytes_read;
                     success_trans += data_len;
@@ -188,7 +186,7 @@ int main(int argc, char *argv[])
             }
         }
     }
-    fclose(payload);
+    fclose(pd);
     return 0;
 }
 

@@ -9,17 +9,16 @@
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
-
 static char *Server_IP;
 static int Port;
-
-static FILE *payload;
+static FILE *pd;
 using namespace std;
+long long W_SIZE; // for linker
+
 int main(int argc, char *argv[])
 {
     struct sockaddr_in host;
     struct hostent h_ent, *p_h_ent;
-    static FILE *payload;
 
     struct timeval trans_start = {0, 0};
     struct timeval last_record = {0, 0};
@@ -36,15 +35,11 @@ int main(int argc, char *argv[])
     int mess_len;
     char mess_buf[MAX_PKT_SIZE];
     char *data_mess_ptr = &mess_buf[sizeof(mess_len)];
-    long long W_SIZE = 0;
 
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Sending to %s at port %d\n", Server_IP, Port);
-    payload = fopen("./ncp_payload/payload1.txt", "rb");
-    fseek(payload, 0, SEEK_END);
-    ftell(payload);
-    fseek(payload, 0, SEEK_SET);
+    pd = fopen("./ncp_pd/pd1.txt", "rb");
     /* Open socket */
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
@@ -76,11 +71,7 @@ int main(int argc, char *argv[])
     last_record.tv_sec = trans_start.tv_sec;
     for (;;)
     {
-        /* Read message into mess_buf, leaving space for message length the
-         * beginning of the buffer */
-        //printf("enter message: ");
-
-        fread(data_mess_ptr, sizeof(mess_buf) - sizeof(mess_len), 1, payload);
+        fread(data_mess_ptr, sizeof(mess_buf) - sizeof(mess_len), 1, pd);
         mess_len = strlen(data_mess_ptr) + sizeof(mess_len);
         /* Put message length into beginning of message buffer */
         memcpy(mess_buf, &mess_len, sizeof(mess_len));
@@ -112,13 +103,13 @@ int main(int argc, char *argv[])
             last_record_bytes = total_trans;
         }
 
-        if (feof(payload))
+        if (feof(pd))
         {
+            fclose(pd);
             break;
         }
     }
 
-    fclose(payload);
     gettimeofday(&trans_curr, NULL);
     timersub(&trans_curr, &trans_start, &diff_time);
 
