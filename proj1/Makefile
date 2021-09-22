@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
-LR=0 # loss rate
+LR=50 # loss rate
 ADDR=localhost
 S_FNAME_1=ncp_pd/pd1.txt
 D_FNAME_1=rcv_pd/pd1_dst.txt

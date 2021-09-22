@@ -2,33 +2,36 @@
 #include <iostream>
 #include <stdio.h>
 #include <algorithm>
+#include <ctime>
+#include <set>
 #include "utils/packet.h"
 #include "utils/net_include.h"
 #include "utils/sendto_dbg.h"
 #include "utils/sender_info.h"
 #include "utils/file_helper.h"
 
+using namespace std;
+
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
-
 void wr_ncp(int &from_ip, int pid);
 void init_receive(FILE *pd, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
-
 // IO
 static int Port;
 static bool isLAN;
 FILE *pd;
-
 // data structures
-static std::vector<net_pkt *> window;
+static vector<net_pkt *> window;
+static set<string> senders;
 static long long cum_seq = 0;
 long long W_SIZE; // for linker
 int Pid = -1;    
 int Ip = -1;
 
+    
 int main(int argc, char *argv[])
 {
     ncp_addr ncp;
@@ -123,7 +126,7 @@ int main(int argc, char *argv[])
                     p.cum_seq = -1; // indicating blocked 
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&tmp_from_addr,
                                sizeof(tmp_from_addr));
-                    wr_ncp(from_ip, Pid);
+                    wr_ncp(from_ip, pkt->pid);
                 }
 
                 /* OLD PKT */
@@ -248,7 +251,10 @@ void wr_ncp(int &from_ip, int pid)
            (htonl(from_ip) & 0x0000ff00) >> 8,
            (htonl(from_ip) & 0x000000ff), from_ip, pid);
     
-    FILE *ncp_info = fopen(&((S_CACHE + std::to_string(from_ip) + '_' + std::to_string(pid))[0]), "wb");
+    // add to senders, write to file with timestamp for sequence 
+    if (senders.find(to_string(from_ip) + '_' + to_string(pid)) != senders.end()) return;
+    senders.insert(to_string(from_ip) + '_' + to_string(pid));
+    FILE *ncp_info = fopen(&((S_CACHE + to_string(time(0)) + '_' + to_string(from_ip) + '_' + to_string(pid))[0]), "wb"); 
     fwrite("blocked", sizeof("blocked"), 1, ncp_info);
     fflush(ncp_info);
     fclose(ncp_info);
