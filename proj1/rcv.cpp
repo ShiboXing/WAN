@@ -249,15 +249,16 @@ int main(int argc, char *argv[])
             closedir(dir);
             if (tmp.size() != 0) 
             {
-                strtok(&(tmp[0][0])), "_");
+                strtok(&(tmp[0][0]), "_"); // strip 'ncp'+timestamp prefix
                 Ip = atoi(strtok(NULL, "_"));
                 Pid = atoi(strtok(NULL, "_"));
+                remove(&(tmp[0][0])); // remove the sender info cache   
             }
+            
         }
     }
 
-    fclose(pd);
-    return 0;
+    return 0; // should not invoke
 }
 
 void wr_ncp(int &from_ip, int pid)
@@ -280,7 +281,6 @@ void wr_ncp(int &from_ip, int pid)
 void init_receive(FILE *pd, net_pkt *pkt)
 {
     fwrite((const char *)pkt->data, 1, pkt->dt_size, pd);
-    return;
 }
 
 /* Read commandline arguments */

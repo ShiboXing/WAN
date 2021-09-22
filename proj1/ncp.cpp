@@ -231,7 +231,6 @@ static void Usage(int argc, char *argv[])
         Print_help();
     }
     Port = atoi(strtok(NULL, "@:"));
-
 }
 
 static void Print_help()
