@@ -3,7 +3,7 @@
 // #include <stdio.h>
 // #include <unordered_map>
 // #include <algorithm>
-// #include "utils/file_helper.h"
+#include "utils/file_helper.h"
 #include "utils/net_include.h"
 // #include "utils/sendto_dbg.h"
 
@@ -15,6 +15,7 @@ static int Port;
 static int Recv_socks[10];
 static int Valid[10];
 static fd_set Read_mask;
+FILE *payload;
 
 int main(int argc, char *argv[])
 {
@@ -26,12 +27,26 @@ int main(int argc, char *argv[])
     int data_len;
     int bytes_read;
     int ret;
-    char mess_buf[1400];
+    char mess_buf[MAX_PKT_SIZE];
     long on = 1;
+    long long W_SIZE = 0;
+
+    double total_trans = 0;
+    double success_trans = 0;
+    double last_record_bytes = 0;
+
+    struct timeval last_recv_time = {0, 0};
+    struct timeval now;
+    struct timeval last_record_time = {0, 0};
+    struct timeval trans_start = {0, 0};
+    struct timeval diff_time;
+
+    bool rcv_start = false;
 
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Listening for connections on port %d\n", Port);
+    payload = fopen("./rcv_payload/payload1.txt", "wb");
 
     /* Open socket to listen for connections */
     listen_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -93,19 +108,34 @@ int main(int argc, char *argv[])
                 i++;
             }
 
-            /* Check for incoming messages on existing connections */
+            /* Check kor incoming messages on existing connections */
             for (j = 0; j < i; j++)
             {
                 if (Valid[j] && FD_ISSET(Recv_socks[j], &mask))
                 {
                     /* Read message length */
+                    if (!rcv_start)
+                    {
+                        gettimeofday(&last_record_time, NULL);
+                        trans_start.tv_sec = last_record_time.tv_sec;
+                        rcv_start = true;
+                    }
                     bytes_read = 0;
                     while (bytes_read < sizeof(mess_len))
                     {
                         ret = recv(Recv_socks[j], &(((char *)&mess_len)[bytes_read]), sizeof(mess_len) - bytes_read, 0);
                         if (ret <= 0)
                         {
+                            gettimeofday(&now, NULL);
+                            timersub(&now, &trans_start, &diff_time);
+                            print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES, false);
+                            last_record_time.tv_sec = 0;
+                            last_record_time.tv_usec = 0;
+                            last_record_bytes = 0;
+                            rcv_start = false;
+
                             Clear_sock(j);
+                            fflush(payload);
                             break;
                         }
                         bytes_read += ret;
@@ -121,22 +151,44 @@ int main(int argc, char *argv[])
                         ret = recv(Recv_socks[j], &mess_buf[bytes_read], data_len - bytes_read, 0);
                         if (ret <= 0)
                         {
+                            gettimeofday(&now, NULL);
+                            timersub(&now, &trans_start, &diff_time);
+                            print_statistics_finish(diff_time, total_trans, (double)success_trans / MEGABYTES, false);
+                            last_record_time.tv_sec = 0;
+                            last_record_time.tv_usec = 0;
+                            last_record_bytes = 0;
+                            rcv_start = false;
+
                             Clear_sock(j);
+                            fflush(payload);
                             break;
                         }
-                        bytes_read += ret;
                     }
                     if (bytes_read < data_len)
                         continue; /* socket was closed mid-read */
-                    mess_buf[data_len] = '\0';
-                    printf("socket is %d ", j);
-                    printf("len is : %d  message is : %s \n ", mess_len, mess_buf);
-                    printf("---------------- \n");
+                    fwrite(mess_buf, 1, sizeof(mess_buf), payload);
+
+                    total_trans += bytes_read;
+                    success_trans += data_len;
+
+                    if (total_trans - last_record_bytes >= 10 * MEGABYTES)
+                    {
+                        gettimeofday(&now, NULL);
+                        timersub(&now, &last_record_time, &diff_time);
+                        double trans_data = (double)(total_trans - last_record_bytes);
+                        print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
+                        last_record_time.tv_sec = now.tv_sec;
+                        last_record_bytes = total_trans;
+                    }
+                    //mess_buf[data_len] = '\0';
+                    //printf("socket is %d ", j);
+                    // printf("len is : %d  message is : %s \n ", mess_len, mess_buf);
+                    // printf("---------------- \n");
                 }
             }
         }
     }
-
+    fclose(payload);
     return 0;
 }
 

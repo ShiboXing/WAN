@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
-LR=25 # loss rate
+LR=0 # loss rate
 ADDR=localhost
 S_FNAME_1=ncp_payload/payload1.txt
 D_FNAME_1=ncp_payload/payload1_dst.txt
@@ -68,9 +68,9 @@ t_rcv:
 	$(CC) $(CFLAGS) t_rcv.cpp
 
 main_t_ncp:
-	$(CC) -o t_ncp t_ncp.o 
+	$(CC) -o t_ncp t_ncp.o file_helper.o
 main_t_rcv:
-	$(CC) -o t_rcv t_rcv.o 
+	$(CC) -o t_rcv t_rcv.o file_helper.o
 run_t_ncp:
 	./t_ncp localhost:5555
 run_t_rcv:
