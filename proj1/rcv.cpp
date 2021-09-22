@@ -13,14 +13,14 @@ static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
 
 void wr_ncp(int &from_ip, int pid);
-void init_receive(FILE *payload, struct net_pkt *pkt);
+void init_receive(FILE *pd, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
 
 // IO
 static int Port;
 static bool isLAN;
-FILE *payload;
+FILE *pd;
 
 // data structures
 static std::vector<net_pkt *> window;
@@ -41,14 +41,11 @@ int main(int argc, char *argv[])
     fd_set mask;
     fd_set read_mask;
     int bytes;
-
     int done = 0;
     double total_trans = 0;
     double success_trans = 0;
     double last_record_bytes = 0;
-
     bool rcv_start = false;
-
     int num;
     char mess_buf[sizeof(net_pkt)];
     struct timeval last_recv_time = {0, 0};
@@ -60,29 +57,22 @@ int main(int argc, char *argv[])
     /* Parse commandline args */
     Usage(argc, argv);
     printf("Listening for messages on port %d\n", Port);
-
-    // open destination
-    payload = fopen("./rcv_payload/payload.txt", "wb");
-
     /* Open socket for receiving */
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0)
     {
-        perror("udp_server: socket");
+        perror("rcv: socket");
         exit(1);
     }
-
     /* Bind receive socket to listen for incoming messages on specified port */
     name.sin_family = AF_INET;
     name.sin_addr.s_addr = INADDR_ANY;
     name.sin_port = htons(Port);
-
     if (bind(sock, (struct sockaddr *)&name, sizeof(name)) < 0)
     {
-        perror("udp_server: bind");
+        perror("rcv: bind");
         exit(1);
     }
-
     /* Set up mask for file descriptors we want to read from */
     FD_ZERO(&read_mask);
     FD_SET(sock, &read_mask);
@@ -126,6 +116,7 @@ int main(int argc, char *argv[])
                     Pid = pkt->pid; // record first sender
                     Ip = from_ip;
                     from_addr = tmp_from_addr;
+                    pd = fopen(pkt->d_fname, "wb"); // open destination
                 }
                 else if(pkt->pid != Pid || from_ip != Ip) // block other sender(s)
                 {
@@ -156,7 +147,7 @@ int main(int argc, char *argv[])
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr)); // send the new cum-ack
                     success_trans += pkt->dt_size;
-                    init_receive(payload, pkt); //write to disk
+                    init_receive(pd, pkt); //write to disk
                     // dequeue buffer
                     while (window.size() != 0 && window.front()->seq == cum_seq + 1)
                     {
@@ -166,11 +157,11 @@ int main(int argc, char *argv[])
                                    sizeof(from_addr));
                         window.erase(window.begin()); // delete the buffered pkt
                         success_trans += pkt->dt_size;
-                        init_receive(payload, pkt); //write to disk
+                        init_receive(pd, pkt); //write to disk
                     }
                 }
                 /* FUTURE PKT */
-                else if (window.size() < pkt->w_size) 
+                else if ((long long)window.size() < pkt->w_size) 
                 {
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
@@ -183,7 +174,7 @@ int main(int argc, char *argv[])
                     long long lo_ind = -1; 
                     long long hi_ind = 0;
                     p.is_nack = true;
-                    while (hi_ind < window.size())
+                    while (hi_ind < (long long)window.size())
                     {
                         long long lo, hi;
                         if (lo_ind == -1)
@@ -227,6 +218,8 @@ int main(int argc, char *argv[])
                     last_record_time.tv_usec = 0;
                     last_record_bytes = 0;
                     rcv_start = false;
+                    fflush(pd);
+                    fclose(pd);
                 }
             }
         }
@@ -243,18 +236,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    fclose(payload);
+    fclose(pd);
     return 0;
 }
 
 void wr_ncp(int &from_ip, int pid)
 {
-    char format_ip[100];
-    printf("sender %d.%d.%d.%d pid: %d, is blocked\n",
+    printf("sender %d.%d.%d.%d (%d) pid: %d, is blocked\n",
            (htonl(from_ip) & 0xff000000) >> 24,
            (htonl(from_ip) & 0x00ff0000) >> 16,
            (htonl(from_ip) & 0x0000ff00) >> 8,
-           (htonl(from_ip) & 0x000000ff), pid);
+           (htonl(from_ip) & 0x000000ff), from_ip, pid);
     
     FILE *ncp_info = fopen(&((S_CACHE + std::to_string(from_ip) + '_' + std::to_string(pid))[0]), "wb");
     fwrite("blocked", sizeof("blocked"), 1, ncp_info);
@@ -262,13 +254,13 @@ void wr_ncp(int &from_ip, int pid)
     fclose(ncp_info);
 }
 
-void init_receive(FILE *payload, net_pkt *pkt)
+void init_receive(FILE *pd, net_pkt *pkt)
 {
-    fwrite((const char *)pkt->data, 1, pkt->dt_size, payload);
-    if (pkt->is_end)
-    {
-        fflush(payload);
-    }
+    fwrite((const char *)pkt->data, 1, pkt->dt_size, pd);
+    // if (pkt->is_end)
+    // {
+    //     fflush(pd);
+    // }
     return;
 }
 

@@ -2,12 +2,12 @@ CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
 LR=0 # loss rate
 ADDR=localhost
-S_FNAME_1=ncp_payload/payload1.txt
-D_FNAME_1=ncp_payload/payload1_dst.txt
-S_FNAME_2=ncp_payload/payload2.txt
-D_FNAME_2=ncp_payload/payload1_dst.txt
-S_FNAME_3=ncp_payload/payload3.txt
-D_FNAME_3=ncp_payload/payload3_dst.txt
+S_FNAME_1=ncp_pd/pd1.txt
+D_FNAME_1=rcv_pd/pd1_dst.txt
+S_FNAME_2=ncp_pd/pd2.txt
+D_FNAME_2=rcv_pd/pd2_dst.txt
+S_FNAME_3=ncp_pd/pd3.txt
+D_FNAME_3=rcv_pd/pd3_dst.txt
 PORT=5555
 ENV=LAN
 
@@ -25,7 +25,7 @@ PORT2=26210
 
 PROJECTROOT = ~/project1
 
-all: .utils ncp rcv main_ncp main_rcv ncp_payload .sender_cache rcv_payload ncp_payload/payload1.txt ncp_payload/payload2.txt ncp_payload/payload3.txt 
+all: .utils ncp rcv main_ncp main_rcv ncp_pd .sender_cache rcv_pd ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
 
 bench: .utils t_ncp t_rcv main_t_ncp main_t_rcv
 
@@ -40,18 +40,18 @@ main_ncp:
 	$(CC) -o ncp ncp.o file_helper.o sendto_dbg.o
 main_rcv:
 	$(CC) -o rcv rcv.o file_helper.o sendto_dbg.o
-ncp_payload:
-	mkdir ncp_payload 
-rcv_payload:
-	mkdir rcv_payload
+ncp_pd:
+	mkdir ncp_pd 
+rcv_pd:
+	mkdir rcv_pd
 .sender_cache:
 	mkdir .sender_cache
-ncp_payload/payload1.txt:
-	python gen_file/gen_file.py -f ncp_payload/payload1.txt -b 20000001
-ncp_payload/payload2.txt:
-	python gen_file/gen_file.py -f ncp_payload/payload2.txt -b 20000020
-ncp_payload/payload3.txt:
-	python gen_file/gen_file.py -f ncp_payload/payload3.txt -b 20000300
+ncp_pd/pd1.txt:
+	python gen_file/gen_file.py -f ncp_pd/pd1.txt -b 20000001
+ncp_pd/pd2.txt:
+	python gen_file/gen_file.py -f ncp_pd/pd2.txt -b 20000020
+ncp_pd/pd3.txt:
+	python gen_file/gen_file.py -f ncp_pd/pd3.txt -b 20000300
 
 run_ncp_1: 
 	./ncp $(LR) $(ENV) $(S_FNAME_1) $(D_FNAME_1)@$(ADDR):$(PORT)
@@ -77,9 +77,9 @@ run_t_rcv:
 	./t_rcv 5555
 
 clean_all: clean
-	rm -rf rcv_payload ncp_payload .sender_cache
+	rm -rf rcv_pd ncp_pd .sender_cache
 clean:
-	rm -rf *.o *.out ncp rcv t_ncp t_rcv rcv_payload/* .sender_cache/*
+	rm -rf *.o *.out ncp rcv t_ncp t_rcv rcv_pd/* .sender_cache/*
 
 upload_node0: # run sender on node0
 	scp -P 25210 -i $(IDENTITYFILE) -r ../proj1 $(USER)@$(NODE0):$(PROJECTROOT)

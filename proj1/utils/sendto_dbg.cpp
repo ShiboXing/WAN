@@ -26,7 +26,6 @@ void sendto_dbg_init(int percent)
 int sendto_dbg(int s, const char *buf, int len, int flags,
                const struct sockaddr *to, int tolen )
 {
-    int ret;
     int decision;
 
     if (first_time)
@@ -42,7 +41,7 @@ int sendto_dbg(int s, const char *buf, int len, int flags,
     if ((cutoff > 0) && (decision <= cutoff)) { /* drop the packet, but claim success */
         return (len);
     }
-    ret = sendto(s, buf, len, flags, to, tolen);
+    sendto(s, buf, len, flags, to, tolen);
 
     return 0;
 }

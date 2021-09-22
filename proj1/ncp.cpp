@@ -23,8 +23,8 @@ char* s_fname;
 char* d_fname;
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
-static FILE *payload;
-static FILE *payload_end;
+static FILE *pd;
+static FILE *pd_end;
 
 
 // window variables
@@ -55,17 +55,16 @@ int main(int argc, char *argv[])
     bool blocked = false;
     bool start_trans = false;
     int num;
-    W_SIZE = 30;
+    W_SIZE = 20;
 
     /* Parse commandline args */
     {
         Usage(argc, argv);
         printf("Sending to %s at port %d\n", Server_IP, Port);
-        Pid = (long long)getpid();
-        // read payload
-        payload = fopen(s_fname, "rb");
-        payload_end = fopen(s_fname, "rb");
-        fseek(payload_end, 0, SEEK_END); // get end pointer
+        // read pd
+        pd = fopen(s_fname, "rb");
+        pd_end = fopen(s_fname, "rb");
+        fseek(pd_end, 0, SEEK_END); // get end pointer
         /* Open socket for sending */
         sock = socket(AF_INET, SOCK_DGRAM, 0);
         if (sock < 0)
@@ -75,6 +74,7 @@ int main(int argc, char *argv[])
         }
         /* Convert string IP address (or hostname) to format we need */
         p_h_ent = gethostbyname(Server_IP);
+        Pid = (long long)getpid();
         if (p_h_ent == NULL)
         {
             printf("rcv: gethostbyname error.\n");
@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
         send_addr.sin_family = AF_INET;
         send_addr.sin_addr.s_addr = host_num;
         send_addr.sin_port = htons(Port);
+        printf("Sender IP: %d, pid: %d", host_num, Pid);
         /* Set up mask for file descriptors we want to read from */
         FD_ZERO(&read_mask);
         FD_SET(sock, &read_mask);
@@ -109,7 +110,12 @@ int main(int argc, char *argv[])
                                  &from_len);
                 struct ack_pkt *ack_p = (struct ack_pkt *)mess_buf; // parse
 
-                if (ack_p->cum_seq == -1) blocked = true; /* BLOCKED BY RCV */
+                if (ack_p->cum_seq == -1 && !blocked) 
+                {
+                    blocked = true; /* BLOCKED BY RCV */
+                    printf("blocked by receiver!!\n");
+                    fflush(stdout);
+                }
                 if (!ack_p->is_nack)
                 {
                     while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
@@ -152,7 +158,7 @@ int main(int argc, char *argv[])
             }
             // send un-acked packets
             fill_win();
-            for (long i = 0; i < window.size(); i++)
+            for (long long i = 0; i < (long long)window.size(); i++)
             {
                 auto p = window[i];
                 total_trans += sizeof(*p);
@@ -193,10 +199,11 @@ void fill_win()
 
             pkt = (struct net_pkt *)malloc(sizeof(struct net_pkt));
             window.push_back(pkt);
-            fetch_next(payload, payload_end, pkt);
+            fetch_next(pd, pd_end, pkt);
             pkt->seq = pkt_cnt++;
             pkt->pid = Pid;
-            if (ftell(payload) == -1) break; // guard for end packet
+            strcpy(pkt->d_fname, d_fname);
+            if (ftell(pd) == -1) break; // guard for end packet
             umap[pkt->seq] = 'u';
         }
     }
