@@ -27,7 +27,7 @@ PROJECTROOT = ~/project1
 
 all: .utils ncp rcv main_ncp main_rcv ncp_pd .sender_cache rcv_pd ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
 
-bench: .utils t_ncp t_rcv main_t_ncp main_t_rcv ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
+bench: .utils t_ncp t_rcv main_ncp main_rcv main_t_ncp main_t_rcv ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
 
 .utils: 
 	$(CC) $(CFLAGS) utils/sendto_dbg.cpp 
