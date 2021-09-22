@@ -111,6 +111,8 @@ int main(int argc, char *argv[])
             {
                 if (Valid[j] && FD_ISSET(Recv_socks[j], &mask))
                 {
+                    memset(mess_buf, 0, sizeof(mess_buf));
+
                     /* Read message length */
                     if (!rcv_start)
                     {
@@ -134,6 +136,7 @@ int main(int argc, char *argv[])
 
                             Clear_sock(j);
                             fflush(pd);
+                            fclose(pd);
                             break;
                         }
                         bytes_read += ret;
@@ -159,12 +162,14 @@ int main(int argc, char *argv[])
 
                             Clear_sock(j);
                             fflush(pd);
+                            fclose(pd);
                             break;
                         }
+                        bytes_read += ret;
                     }
                     if (bytes_read < data_len)
                         continue; /* socket was closed mid-read */
-                    fwrite(mess_buf, 1, sizeof(mess_buf), pd);
+                    fwrite(mess_buf, 1, mess_len - sizeof(mess_len), pd);
 
                     total_trans += bytes_read;
                     success_trans += data_len;
