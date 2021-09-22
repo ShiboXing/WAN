@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
     ncp_addr ncp;
     struct sockaddr_in name;
     struct sockaddr_in from_addr;
+    struct sockaddr_in tmp_from_addr;
     int from_ip;
     socklen_t from_len;
     int sock;
@@ -108,11 +109,11 @@ int main(int argc, char *argv[])
                 from_len = sizeof(from_addr);
                 memset(mess_buf, 0, PKT_DT_SIZE);
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
-                                 (struct sockaddr *)&from_addr,
+                                 (struct sockaddr *)&tmp_from_addr,
                                  &from_len);
                 if (bytes == 0) continue;            // didn't receive anything
                 gettimeofday(&last_recv_time, NULL); // record time of receival
-                from_ip = from_addr.sin_addr.s_addr;
+                from_ip = tmp_from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse pkt
                 total_trans += sizeof(*pkt);
 
@@ -124,12 +125,13 @@ int main(int argc, char *argv[])
                 {
                     Pid = pkt->pid; // record first sender
                     Ip = from_ip;
+                    from_addr = tmp_from_addr;
                 }
                 else if(pkt->pid != Pid || from_ip != Ip) // block other sender(s)
                 {
                     p.cum_seq = -1; // indicating blocked 
-                    sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
-                               sizeof(from_addr));
+                    sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&tmp_from_addr,
+                               sizeof(tmp_from_addr));
                     wr_ncp(from_ip, Pid);
                 }
 

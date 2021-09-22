@@ -19,8 +19,8 @@ static char *Server_IP;
 static int Port;
 static int Pid;
 static bool isLAN;
-static char* s_fname;
-static char* d_fname;
+char* s_fname;
+char* d_fname;
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
 static FILE *payload;
@@ -42,59 +42,53 @@ int main(int argc, char *argv[])
     struct timeval timeout;
     struct timeval trans_start = {0, 0};
     struct timeval last_record = {0, 0};
-
     struct timeval trans_curr;
     struct timeval diff_time;
-
     int host_num;
-    int from_ip;
     int sock;
     fd_set mask;
     fd_set read_mask;
     char mess_buf[sizeof(ack_pkt)];
-    int bytes = 0;
     double total_trans = 0;
     double success_trans = 0;
     double last_record_bytes = 0;
     bool blocked = false;
     bool start_trans = false;
     int num;
-
-    // read file
-    payload = fopen("./ncp_payload/payload.txt", "rb");
-    payload_end = fopen("./ncp_payload/payload.txt", "rb");
-    fseek(payload_end, 0, SEEK_END); // get end pointer
+    W_SIZE = 30;
 
     /* Parse commandline args */
-    Usage(argc, argv);
-    printf("Sending to %s at port %d\n", Server_IP, Port);
-    W_SIZE = 50;
-    Pid = (long long)getpid();
-
-    /* Open socket for sending */
-    sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0)
     {
-        perror("rcv: socket");
-        exit(1);
+        Usage(argc, argv);
+        printf("Sending to %s at port %d\n", Server_IP, Port);
+        Pid = (long long)getpid();
+        // read payload
+        payload = fopen(s_fname, "rb");
+        payload_end = fopen(s_fname, "rb");
+        fseek(payload_end, 0, SEEK_END); // get end pointer
+        /* Open socket for sending */
+        sock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sock < 0)
+        {
+            perror("rcv: socket");
+            exit(1);
+        }
+        /* Convert string IP address (or hostname) to format we need */
+        p_h_ent = gethostbyname(Server_IP);
+        if (p_h_ent == NULL)
+        {
+            printf("rcv: gethostbyname error.\n");
+            exit(1);
+        }
+        memcpy(&h_ent, p_h_ent, sizeof(h_ent));
+        memcpy(&host_num, h_ent.h_addr_list[0], sizeof(host_num));
+        send_addr.sin_family = AF_INET;
+        send_addr.sin_addr.s_addr = host_num;
+        send_addr.sin_port = htons(Port);
+        /* Set up mask for file descriptors we want to read from */
+        FD_ZERO(&read_mask);
+        FD_SET(sock, &read_mask);
     }
-
-    /* Convert string IP address (or hostname) to format we need */
-    p_h_ent = gethostbyname(Server_IP);
-    if (p_h_ent == NULL)
-    {
-        printf("rcv: gethostbyname error.\n");
-        exit(1);
-    }
-
-    memcpy(&h_ent, p_h_ent, sizeof(h_ent));
-    memcpy(&host_num, h_ent.h_addr_list[0], sizeof(host_num));
-    send_addr.sin_family = AF_INET;
-    send_addr.sin_addr.s_addr = host_num;
-    send_addr.sin_port = htons(Port);
-    /* Set up mask for file descriptors we want to read from */
-    FD_ZERO(&read_mask);
-    FD_SET(sock, &read_mask);
 
     for (;;)
     {
@@ -110,12 +104,12 @@ int main(int argc, char *argv[])
             if (FD_ISSET(sock, &mask))
             {
                 from_len = sizeof(from_addr);
-                bytes = recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
+                recvfrom(sock, mess_buf, sizeof(mess_buf), 0,
                                  (struct sockaddr *)&from_addr,
                                  &from_len);
-                from_ip = from_addr.sin_addr.s_addr;
                 struct ack_pkt *ack_p = (struct ack_pkt *)mess_buf; // parse
-            
+
+                if (ack_p->cum_seq == -1) blocked = true; /* BLOCKED BY RCV */
                 if (!ack_p->is_nack)
                 {
                     while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
@@ -149,6 +143,7 @@ int main(int argc, char *argv[])
         }
         else
         {
+            if (blocked) continue; // wait until sender approves
             if (!start_trans)
             {
                 start_trans = true;

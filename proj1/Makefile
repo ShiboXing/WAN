@@ -2,8 +2,12 @@ CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
 LR=25 # loss rate
 ADDR=localhost
-S_FNAME=payload.txt
-D_FNAME=payload_dst.txt
+S_FNAME_1=ncp_payload/payload1.txt
+D_FNAME_1=ncp_payload/payload1_dst.txt
+S_FNAME_2=ncp_payload/payload2.txt
+D_FNAME_2=ncp_payload/payload1_dst.txt
+S_FNAME_3=ncp_payload/payload3.txt
+D_FNAME_3=ncp_payload/payload3_dst.txt
 PORT=5555
 ENV=LAN
 
@@ -21,7 +25,7 @@ PORT2=26210
 
 PROJECTROOT = ~/project1
 
-all: .utils ncp rcv main_ncp main_rcv ncp_payload rcv_payload ncp_payload/payload.txt 
+all: .utils ncp rcv main_ncp main_rcv ncp_payload .sender_cache rcv_payload ncp_payload/payload1.txt ncp_payload/payload2.txt ncp_payload/payload3.txt 
 
 bench: .utils t_ncp t_rcv main_t_ncp main_t_rcv
 
@@ -40,13 +44,21 @@ ncp_payload:
 	mkdir ncp_payload 
 rcv_payload:
 	mkdir rcv_payload
-sender_cache:
+.sender_cache:
 	mkdir .sender_cache
-ncp_payload/payload.txt:
-	python gen_file/gen_file.py -f ncp_payload/payload.txt -b 3000000
+ncp_payload/payload1.txt:
+	python gen_file/gen_file.py -f ncp_payload/payload1.txt -b 20000001
+ncp_payload/payload2.txt:
+	python gen_file/gen_file.py -f ncp_payload/payload2.txt -b 20000020
+ncp_payload/payload3.txt:
+	python gen_file/gen_file.py -f ncp_payload/payload3.txt -b 20000300
 
-run_ncp: 
-	./ncp $(LR) $(ENV) $(S_FNAME) $(D_FNAME)@$(ADDR):$(PORT)
+run_ncp_1: 
+	./ncp $(LR) $(ENV) $(S_FNAME_1) $(D_FNAME_1)@$(ADDR):$(PORT)
+run_ncp_2: 
+	./ncp $(LR) $(ENV) $(S_FNAME_2) $(D_FNAME_2)@$(ADDR):$(PORT)
+run_ncp_3: 
+	./ncp $(LR) $(ENV) $(S_FNAME_3) $(D_FNAME_3)@$(ADDR):$(PORT)
 run_rcv:
 	./rcv $(LR) $(PORT) $(ENV)
 
@@ -65,9 +77,9 @@ run_t_rcv:
 	./t_rcv 5555
 
 clean_all: clean
-	rm -rf rcv_payload ncp_payload 
+	rm -rf rcv_payload ncp_payload .sender_cache
 clean:
-	rm -f *.o *.out ncp rcv rcv_payload/*  t_ncp t_rcv
+	rm -rf *.o *.out ncp rcv t_ncp t_rcv rcv_payload/* .sender_cache/*
 
 upload_node0: # run sender on node0
 	scp -P 25210 -i $(IDENTITYFILE) -r ../proj1 $(USER)@$(NODE0):$(PROJECTROOT)
