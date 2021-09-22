@@ -15,6 +15,9 @@ static void Print_help();
 static void fill_win();
 static char *Server_IP;
 static int Port;
+static bool isLAN;
+static char* s_fname;
+static char* d_fname;
 
 static struct sockaddr_in send_addr;
 static struct sockaddr_in from_addr;
@@ -203,25 +206,30 @@ void fill_win()
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc != 5)
     {
         Print_help();
     }
 
-    Server_IP = strtok(argv[1], ":");
+    sendto_dbg_init((int)atoi(argv[1]));
+    
+    isLAN = argv[2][0] == 'L';
+    
+    s_fname = argv[3];
+    
+    d_fname = strtok(argv[4], "@:");
+    Server_IP = strtok(NULL, "@:");
     if (Server_IP == NULL)
     {
         printf("Error: no server IP provided\n");
         Print_help();
     }
-    Port = atoi(strtok(NULL, ":"));
+    Port = atoi(strtok(NULL, "@:"));
 
-    /* set loss rate */
-    sendto_dbg_init((int)atoi(argv[2]));
 }
 
 static void Print_help()
 {
-    printf("Usage: udp_client <server_ip>:<port>\n");
+    printf("Usage: ncp <loss_rate_percent> <env> <source_file_name> <dest_file_name>@<ip_address>:<port>\n");
     exit(0);
 }

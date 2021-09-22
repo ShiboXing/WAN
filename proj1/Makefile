@@ -1,6 +1,11 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
 LR=25 # loss rate
+ADDR=localhost
+S_FNAME=payload.txt
+D_FNAME=payload_dst.txt
+PORT=5555
+ENV=LAN
 
 USER= qil77
 IDENTITYFILE= ~/.ssh/id_geni_ssh_rsa
@@ -36,12 +41,12 @@ ncp_payload:
 rcv_payload:
 	mkdir rcv_payload
 ncp_payload/payload.txt:
-	python gen_file/gen_file.py -f ncp_payload/payload.txt -b 10000000
+	python gen_file/gen_file.py -f ncp_payload/payload.txt -b 3000000
 
 run_ncp: 
-	./ncp localhost:5555 $(LR)
+	./ncp $(LR) $(ENV) $(S_FNAME) $(D_FNAME)@$(ADDR):$(PORT)
 run_rcv:
-	./rcv 5555 $(LR)
+	./rcv $(LR) $(PORT) $(ENV)
 
 t_ncp:
 	$(CC) $(CFLAGS) t_ncp.cpp

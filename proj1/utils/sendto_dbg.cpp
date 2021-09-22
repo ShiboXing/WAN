@@ -11,13 +11,15 @@ static int cutoff; /* default is 25% loss */
 
 void sendto_dbg_init(int percent)
 {
-    /* percent is in integer form (i.e. 1 = 1%, 5 = 5%) */
-    cutoff  = (percent * 0.01 * 0xff);
     if (percent < 0 || percent > 100) 
     {
         printf("incorrect loss rate");
         exit(0);
     }
+    
+    /* percent is in integer form (i.e. 1 = 1%, 5 = 5%) */
+    cutoff  = (percent * 0.01 * 0xff);
+    
     printf("\n++++++++++ cutoff value is %d +++++++++\n", cutoff);
 }
 

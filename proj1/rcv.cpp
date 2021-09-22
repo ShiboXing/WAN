@@ -19,6 +19,7 @@ static const struct timeval Zero_time = {0, 0};
 
 // IO
 static int Port;
+static bool isLAN;
 FILE *payload;
 
 // data structures
@@ -258,17 +259,20 @@ void init_receive(FILE *payload, net_pkt *pkt)
 /* Read commandline arguments */
 static void Usage(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc != 4)
     {
         Print_help();
     }
 
-    if (sscanf(argv[1], "%d", &Port) != 1)
+    sendto_dbg_init(atoi(argv[1]));
+
+    if (sscanf(argv[2], "%d", &Port) != 1)
     {
         Print_help();
     }
 
-    sendto_dbg_init(atoi(argv[2]));
+    isLAN = argv[3][0] == 'L';
+
 }
 
 static void Print_help()
