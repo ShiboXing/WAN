@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <ctime>
 #include <set>
+#include <dirent.h>
 #include "utils/packet.h"
 #include "utils/net_include.h"
 #include "utils/sendto_dbg.h"
@@ -236,6 +237,22 @@ int main(int argc, char *argv[])
                 printf("last msg received %lf seconds ago.\n\n",
                        diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
             }
+
+            vector<string> tmp;
+            struct dirent *entry;
+            DIR *dir = opendir(S_CACHE);
+            while ((entry = readdir(dir)) != NULL) {
+                if (entry->d_name[0] == 'n' && entry->d_name[1] == 'c' && entry->d_name[2] == 'p')
+                    tmp.push_back(string(entry->d_name));
+            }
+            sort(tmp.begin(), tmp.end());
+            closedir(dir);
+            if (tmp.size() != 0) 
+            {
+                strtok(&(tmp[0][0])), "_");
+                Ip = atoi(strtok(NULL, "_"));
+                Pid = atoi(strtok(NULL, "_"));
+            }
         }
     }
 
@@ -254,7 +271,7 @@ void wr_ncp(int &from_ip, int pid)
     // add to senders, write to file with timestamp for sequence 
     if (senders.find(to_string(from_ip) + '_' + to_string(pid)) != senders.end()) return;
     senders.insert(to_string(from_ip) + '_' + to_string(pid));
-    FILE *ncp_info = fopen(&((S_CACHE + to_string(time(0)) + '_' + to_string(from_ip) + '_' + to_string(pid))[0]), "wb"); 
+    FILE *ncp_info = fopen(&((S_CACHE + string("ncp") + to_string(time(0)) + '_' + to_string(from_ip) + '_' + to_string(pid))[0]), "wb"); 
     fwrite("blocked", sizeof("blocked"), 1, ncp_info);
     fflush(ncp_info);
     fclose(ncp_info);
@@ -263,10 +280,6 @@ void wr_ncp(int &from_ip, int pid)
 void init_receive(FILE *pd, net_pkt *pkt)
 {
     fwrite((const char *)pkt->data, 1, pkt->dt_size, pd);
-    // if (pkt->is_end)
-    // {
-    //     fflush(pd);
-    // }
     return;
 }
 
