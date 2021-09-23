@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask and timeout */
         mask = read_mask;
-        timeout.tv_sec = 10;
+        timeout.tv_sec = 5;
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
                         sender_q.push_back(tmp_from_addr);
                     if (sender_q[0]->sin_addr.s_addr != tmp_from_addr->sin_addr.s_addr || sender_q[0]->sin_port != tmp_from_addr->sin_port)
                         continue;
-                    if (!rcv_start && done == 0)
+                    if (!rcv_start)
                     {
                         gettimeofday(&last_record_time, NULL);
                         pd = fopen(pkt->d_fname, "wb");
@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
                         last_record_bytes = total_trans;
                     }
                 }
-                else if (done == 1 && rcv_start) /* SENDER's COMPLETED */
+                else if (done == 1) /* SENDER's COMPLETED */
                 {
                     gettimeofday(&now, NULL);
                     timersub(&now, &trans_start, &diff_time);
@@ -241,9 +241,23 @@ int main(int argc, char *argv[])
                     last_record_time.tv_sec = 0;
                     last_record_time.tv_usec = 0;
                     last_record_bytes = 0;
+                    total_trans = 0;
+                    success_trans = 0;
+                    last_record_bytes = 0;
                     rcv_start = false;
                     fflush(pd);
                     fclose(pd);
+
+                    /******* SWITCH SENDER *******/
+                    if (done == 1) 
+                    {
+                        printf("switching sender!!\n");
+                        if (sender_q.size() != 0) 
+                            sender_q.erase(sender_q.begin());
+                        done = 0;
+                        rcv_start = false;
+                        cum_seq = 0;
+                    } 
                 }
             }
         }
@@ -261,11 +275,7 @@ int main(int argc, char *argv[])
                 }
             }
 
-            /******* SWITCH SENDER *******/
-            {
-                done = 0;
-                rcv_start = false;
-            }
+            
         }   
     }
 

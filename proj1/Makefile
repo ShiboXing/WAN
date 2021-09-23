@@ -25,7 +25,7 @@ PORT2=26210
 
 PROJECTROOT = ~/project1
 
-all: .utils ncp rcv main_ncp main_rcv ncp_pd .sender_cache rcv_pd ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
+all: .utils ncp rcv main_ncp main_rcv ncp_pd rcv_pd ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
 
 bench: .utils t_ncp t_rcv main_ncp main_rcv main_t_ncp main_t_rcv ncp_pd/pd1.txt ncp_pd/pd2.txt ncp_pd/pd3.txt 
 
@@ -44,8 +44,6 @@ ncp_pd:
 	mkdir ncp_pd 
 rcv_pd:
 	mkdir rcv_pd
-.sender_cache:
-	mkdir .sender_cache
 ncp_pd/pd1.txt:
 	python gen_file/gen_file.py -f ncp_pd/pd1.txt -b 20000001
 ncp_pd/pd2.txt:
@@ -77,9 +75,9 @@ run_t_rcv:
 	./t_rcv 5555
 
 clean_all: clean
-	rm -rf rcv_pd ncp_pd .sender_cache
+	rm -rf rcv_pd ncp_pd 
 clean:
-	rm -rf *.o *.out ncp rcv t_ncp t_rcv rcv_pd/* .sender_cache/*
+	rm -rf *.o *.out ncp rcv t_ncp t_rcv rcv_pd/* 
 
 upload_node0: # run sender on node0
 	scp -P 25210 -i $(IDENTITYFILE) -r ../proj1 $(USER)@$(NODE0):$(PROJECTROOT)
