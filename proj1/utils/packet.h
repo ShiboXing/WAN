@@ -3,13 +3,13 @@
 #define PKT_DT_SIZE 1355
 #define MAX_PKT_SIZE 1400
 #define TIMEOUT_S 0
-#define TIMEOUT_MS 5000 // microseconds
+#define TIMEOUT_MS 400// microseconds
 #define RECORD_TIME 10    //seconds;
 #define MEGABYTES 1000000 // 1 megabytes = 1000000bytes
 #define MEGABITS 8        //1 megabytes = 8 megabits
 #define S_CACHE ".sender_cache/"
-#define L_WSIZE 40
-#define W_WSIZE 20
+#define L_WSIZE 20
+#define W_WSIZE 45
 
 extern long long W_SIZE;
 

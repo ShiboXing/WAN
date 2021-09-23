@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS = -g -c -Wall -pedantic -std=c++14
-LR=10 # loss rate
+LR=30 # loss rate
 ADDR=localhost
 S_FNAME_1=ncp_pd/pd1.txt
 D_FNAME_1=rcv_pd/pd1_dst.txt
@@ -14,10 +14,10 @@ ENV=LAN
 USER= qil77
 IDENTITYFILE= ~/.ssh/id_geni_ssh_rsa
 
-NODE0 =  pc1.instageni.uvm.edu
-port0 = 25210
+NODE0=pc1.instageni.uvm.edu
+port0=25210
 
-NODE1= pc3.instageni.uvm.edu
+NODE1=pc3.instageni.uvm.edu
 PORT1=25210
 
 NODE2=pc3.instageni.utdallas.edu
@@ -45,11 +45,11 @@ ncp_pd:
 rcv_pd:
 	mkdir rcv_pd
 ncp_pd/pd1.txt:
-	python gen_file/gen_file.py -f ncp_pd/pd1.txt -b 20000001
+	python gen_file/gen_file.py -f ncp_pd/pd1.txt -b 100000000
 ncp_pd/pd2.txt:
-	python gen_file/gen_file.py -f ncp_pd/pd2.txt -b 20000020
+	python gen_file/gen_file.py -f ncp_pd/pd2.txt -b 100000000
 ncp_pd/pd3.txt:
-	python gen_file/gen_file.py -f ncp_pd/pd3.txt -b 20000300
+	python gen_file/gen_file.py -f ncp_pd/pd3.txt -b 100000000
 
 run_ncp_1: 
 	./ncp $(LR) $(ENV) $(S_FNAME_1) $(D_FNAME_1)@$(ADDR):$(PORT)

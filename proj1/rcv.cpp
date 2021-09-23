@@ -126,7 +126,13 @@ int main(int argc, char *argv[])
                     if (!sender_present) 
                         sender_q.push_back(tmp_from_addr);
                     if (sender_q[0]->sin_addr.s_addr != tmp_from_addr->sin_addr.s_addr || sender_q[0]->sin_port != tmp_from_addr->sin_port)
+                    {
+                        struct ack_pkt tmp_p;
+                        tmp_p.cum_seq = -1;
+                        sendto_dbg(sock, (char *)&tmp_p, sizeof(tmp_p), 0, (struct sockaddr *)tmp_from_addr,
+                               sizeof(from_addr)); 
                         continue;
+                    }   
                     if (!rcv_start)
                     {
                         gettimeofday(&last_record_time, NULL);
@@ -247,22 +253,12 @@ int main(int argc, char *argv[])
                     rcv_start = false;
                     fflush(pd);
                     fclose(pd);
-
-                    /******* SWITCH SENDER *******/
-                    if (done == 1) 
-                    {
-                        printf("switching sender!!\n");
-                        if (sender_q.size() != 0) 
-                            sender_q.erase(sender_q.begin());
-                        done = 0;
-                        rcv_start = false;
-                        cum_seq = 0;
-                    } 
                 }
             }
         }
         else
         {
+            
             /******* MSG *********/
             {
                 printf("timeout...nothing received for 5 seconds.\n");
@@ -274,8 +270,27 @@ int main(int argc, char *argv[])
                         diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
                 }
             }
-
+             /******* SWITCH SENDER *******/
+            if (done == 1) 
+            {
+                if (sender_q.size() != 0) 
+                {
+                    sender_q.erase(sender_q.begin());
+                }
+                done = 0;
+                rcv_start = false;
+                cum_seq = 0;
+            } 
             
+            // call the next sender if present
+            if(sender_q.size() > 0) 
+            {
+                struct ack_pkt tmp_p;
+                tmp_p.cum_seq = cum_seq;
+                sendto_dbg(sock, (char *)&tmp_p, sizeof(tmp_p), 0, (struct sockaddr *)sender_q[0],
+                        sizeof(from_addr)); 
+                printf("switching sender!\n");
+            }
         }   
     }
 

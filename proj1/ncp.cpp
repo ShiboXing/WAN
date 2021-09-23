@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
     double last_record_bytes = 0;
     bool start_trans = false;
     int num;
+    bool blocked;
 
     /* Parse commandline args */
     {
@@ -110,6 +111,17 @@ int main(int argc, char *argv[])
                                  &from_len);
                 struct ack_pkt *ack_p = (struct ack_pkt *)mess_buf; // parse
 
+                if (ack_p->cum_seq < 0) 
+                {
+                    printf("blocked by sender!");
+                    fflush(stdout);
+                    blocked = true;
+                }
+                else if (blocked)
+                {
+                    printf("unblocked by sender!");
+                    blocked = false;
+                }
                 if (!ack_p->is_nack)
                 {
                     while (window.size() != 0 && window[0]->seq <= ack_p->cum_seq)
@@ -143,6 +155,7 @@ int main(int argc, char *argv[])
         }
         else
         {
+            if (blocked) continue;
             if (!start_trans)
             {
                 start_trans = true;
