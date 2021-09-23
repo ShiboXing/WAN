@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <algorithm>
 #include <ctime>
@@ -16,13 +17,12 @@ using namespace std;
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
-void init_receive(FILE *pd, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
 // IO
 static int Port;
 static bool isLAN;
-FILE *pd;
+ofstream pd;
 // data structures
 static vector<net_pkt *> window;
 static set<string> senders;
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
                     if (!rcv_start)
                     {
                         gettimeofday(&last_record_time, NULL);
-                        pd = fopen(pkt->d_fname, "wb");
+                        pd.open(pkt->d_fname);
                         trans_start.tv_sec = last_record_time.tv_sec;
                         rcv_start = true;
                     }
@@ -167,7 +167,8 @@ int main(int argc, char *argv[])
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr)); // send the new cum-ack
                     success_trans += pkt->dt_size;
-                    init_receive(pd, pkt); //write to disk
+
+                    pd.write(pkt->data, pkt->dt_size); //write to disk
                     // dequeue buffer
                     while (window.size() != 0 && window.front()->seq == cum_seq + 1)
                     {
@@ -177,7 +178,7 @@ int main(int argc, char *argv[])
                                    sizeof(from_addr));
                         window.erase(window.begin()); // delete the buffered pkt
                         success_trans += pkt->dt_size;
-                        init_receive(pd, pkt); //write to disk
+                        pd.write(pkt->data, pkt->dt_size); //write to disk
                     }
                 }
                 /* FUTURE PKT */
@@ -237,6 +238,7 @@ int main(int argc, char *argv[])
                         print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
                         last_record_time.tv_sec = now.tv_sec;
                         last_record_bytes = total_trans;
+                        printf("first 5 chars pkt: %c%c%c%c%c\n", pkt->data[0], pkt->data[1], pkt->data[2], pkt->data[3], pkt->data[4]);
                     }
                 }
                 else if (done == 1) /* SENDER's COMPLETED */
@@ -251,8 +253,8 @@ int main(int argc, char *argv[])
                     success_trans = 0;
                     last_record_bytes = 0;
                     rcv_start = false;
-                    fflush(pd);
-                    fclose(pd);
+                    pd.flush();
+                    pd.close();
                 }
             }
         }
@@ -295,11 +297,6 @@ int main(int argc, char *argv[])
     }
 
     return 0; // should not invoke
-}
-
-void init_receive(FILE *pd, net_pkt *pkt)
-{
-    fwrite((const char *)pkt->data, 1, pkt->dt_size, pd);
 }
 
 /* Read commandline arguments */
