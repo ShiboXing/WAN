@@ -16,7 +16,6 @@ using namespace std;
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
-void wr_ncp(int &from_ip, int pid);
 void init_receive(FILE *pd, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
@@ -37,8 +36,6 @@ int main(int argc, char *argv[])
     ncp_addr ncp;
     struct sockaddr_in name;
     struct sockaddr_in from_addr;
-    struct sockaddr_in tmp_from_addr;
-    int from_ip;
     socklen_t from_len;
     int sock;
     fd_set mask;
@@ -102,32 +99,21 @@ int main(int argc, char *argv[])
                 from_len = sizeof(from_addr);
                 memset(mess_buf, 0, PKT_DT_SIZE);
                 bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
-                                 (struct sockaddr *)&tmp_from_addr,
+                                 (struct sockaddr *)&from_addr,
                                  &from_len);
                 if (bytes == 0)
                     continue;                        // didn't receive anything
                 gettimeofday(&last_recv_time, NULL); // record time of receival
-                from_ip = tmp_from_addr.sin_addr.s_addr;
                 struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse pkt
                 total_trans += sizeof(*pkt);
+                if (Pid == -1 && Ip == -1) {
+                    Ip = from_addr.sin_addr.s_addr;
+                    Pid = pkt->pid;
+                    pd = fopen(pkt->d_fname, "wb");
+                }
 
                 /************ HANDLE RECEIVE ***************/
                 struct ack_pkt p;
-
-                if (Pid == -1) /* Accept or Block sender */
-                {
-                    Pid = pkt->pid; // record first sender
-                    Ip = from_ip;
-                    from_addr = tmp_from_addr;
-                    pd = fopen(pkt->d_fname, "wb"); // open destination
-                }
-                else if (pkt->pid != Pid || from_ip != Ip) // block other sender(s)
-                {
-                    p.cum_seq = -1; // indicating blocked
-                    sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&tmp_from_addr,
-                               sizeof(tmp_from_addr));
-                    wr_ncp(from_ip, pkt->pid);
-                }
 
                 /* OLD PKT */
                 if (pkt->seq <= cum_seq)
@@ -166,6 +152,16 @@ int main(int argc, char *argv[])
                 /* FUTURE PKT */
                 else if ((long long)window.size() < pkt->w_size)
                 {
+                    // check seq is already in the window
+                    bool present = false;
+                    for(long long i = 0; i < (long long)window.size(); i++) {
+                        if (window[i]->seq == pkt->seq) {
+                            present = true;
+                            break;
+                        }
+                    }
+                    if (present) continue;
+
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
                          [](auto &a, auto &b) -> bool
@@ -176,7 +172,6 @@ int main(int argc, char *argv[])
                     // send gapped NACKs
                     long long lo_ind = -1;
                     long long hi_ind = 0;
-                    p.is_nack = true;
                     while (hi_ind < (long long)window.size())
                     {
                         long long lo, hi;
@@ -190,6 +185,7 @@ int main(int argc, char *argv[])
                         {
                             p.cum_seq = i;
                             p.data_size = pkt->w_size;
+                            p.is_nack = true;
                             sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                        sizeof(from_addr));
                         }
@@ -236,47 +232,10 @@ int main(int argc, char *argv[])
                 printf("last msg received %lf seconds ago.\n\n",
                        diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
             }
-
-            vector<string> tmp;
-            struct dirent *entry;
-            DIR *dir = opendir(S_CACHE);
-            while ((entry = readdir(dir)) != NULL)
-            {
-                if (entry->d_name[0] == 'n' && entry->d_name[1] == 'c' && entry->d_name[2] == 'p')
-                    tmp.push_back(string(entry->d_name));
-            }
-            sort(tmp.begin(), tmp.end());
-            closedir(dir);
-            if (tmp.size() != 0)
-            {
-                strtok(&(tmp[0][0]), "_"); // strip 'ncp'+timestamp prefix
-                Ip = atoi(strtok(NULL, "_"));
-                Pid = atoi(strtok(NULL, "_"));
-                remove(&(tmp[0][0])); // remove the sender info cache   
-            }
-            
         }
     }
 
     return 0; // should not invoke
-}
-
-void wr_ncp(int &from_ip, int pid)
-{
-    printf("sender %d.%d.%d.%d (%d) pid: %d, is blocked\n",
-           (htonl(from_ip) & 0xff000000) >> 24,
-           (htonl(from_ip) & 0x00ff0000) >> 16,
-           (htonl(from_ip) & 0x0000ff00) >> 8,
-           (htonl(from_ip) & 0x000000ff), from_ip, pid);
-
-    // add to senders, write to file with timestamp for sequence
-    if (senders.find(to_string(from_ip) + '_' + to_string(pid)) != senders.end())
-        return;
-    senders.insert(to_string(from_ip) + '_' + to_string(pid));
-    FILE *ncp_info = fopen(&((S_CACHE + string("ncp") + to_string(time(0)) + '_' + to_string(from_ip) + '_' + to_string(pid))[0]), "wb");
-    fwrite("blocked", sizeof("blocked"), 1, ncp_info);
-    fflush(ncp_info);
-    fclose(ncp_info);
 }
 
 void init_receive(FILE *pd, net_pkt *pkt)
