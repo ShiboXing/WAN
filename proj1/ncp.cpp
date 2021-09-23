@@ -35,7 +35,7 @@ static long long pkt_cnt = 1;
 long long W_SIZE;
 
 int main(int argc, char *argv[])
-{
+{   
     socklen_t from_len;
     struct hostent h_ent;
     struct hostent *p_h_ent;

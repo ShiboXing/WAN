@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
     ncp_addr ncp;
     struct sockaddr_in name;
     struct sockaddr_in from_addr;
+    struct sockaddr_in *tmp_from_addr;
+    vector<sockaddr_in*> sender_q;
     socklen_t from_len;
     int sock;
     fd_set mask;
@@ -54,28 +56,32 @@ int main(int argc, char *argv[])
     struct timeval trans_start = {0, 0};
     struct timeval diff_time;
     struct timeval timeout;
-    /* Parse commandline args */
-    Usage(argc, argv);
-    printf("Listening for messages on port %d\n", Port);
-    /* Open socket for receiving */
-    sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0)
+
+    /***** INITIALIZE *****/
     {
-        perror("rcv: socket");
-        exit(1);
+        /* Parse commandline args */
+        Usage(argc, argv);
+        printf("Listening for messages on port %d\n", Port);
+        /* Open socket for receiving */
+        sock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sock < 0)
+        {
+            perror("rcv: socket");
+            exit(1);
+        }
+        /* Bind receive socket to listen for incoming messages on specified port */
+        name.sin_family = AF_INET;
+        name.sin_addr.s_addr = INADDR_ANY;
+        name.sin_port = htons(Port);
+        if (bind(sock, (struct sockaddr *)&name, sizeof(name)) < 0)
+        {
+            perror("rcv: bind");
+            exit(1);
+        }
+        /* Set up mask for file descriptors we want to read from */
+        FD_ZERO(&read_mask);
+        FD_SET(sock, &read_mask);
     }
-    /* Bind receive socket to listen for incoming messages on specified port */
-    name.sin_family = AF_INET;
-    name.sin_addr.s_addr = INADDR_ANY;
-    name.sin_port = htons(Port);
-    if (bind(sock, (struct sockaddr *)&name, sizeof(name)) < 0)
-    {
-        perror("rcv: bind");
-        exit(1);
-    }
-    /* Set up mask for file descriptors we want to read from */
-    FD_ZERO(&read_mask);
-    FD_SET(sock, &read_mask);
 
     for (;;)
     {
@@ -90,26 +96,45 @@ int main(int argc, char *argv[])
         {
             if (FD_ISSET(sock, &mask))
             {
-                if (!rcv_start && done == 0)
+                struct net_pkt *pkt;
+                /******** INITIALIZE *******/
                 {
-                    gettimeofday(&last_record_time, NULL);
-                    trans_start.tv_sec = last_record_time.tv_sec;
-                    rcv_start = true;
+                    from_len = sizeof(from_addr);
+                    memset(mess_buf, 0, PKT_DT_SIZE);
+                    tmp_from_addr = (sockaddr_in*)malloc(sizeof(tmp_from_addr));
+                    bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
+                                    (struct sockaddr *)tmp_from_addr,
+                                    &from_len);
+                    if (bytes == 0)
+                        continue;                        // didn't receive anything
+                    gettimeofday(&last_recv_time, NULL); // record time of receival
+                    pkt = (struct net_pkt *)mess_buf; // parse pkt
+                    total_trans += sizeof(*pkt);
                 }
-                from_len = sizeof(from_addr);
-                memset(mess_buf, 0, PKT_DT_SIZE);
-                bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
-                                 (struct sockaddr *)&from_addr,
-                                 &from_len);
-                if (bytes == 0)
-                    continue;                        // didn't receive anything
-                gettimeofday(&last_recv_time, NULL); // record time of receival
-                struct net_pkt *pkt = (struct net_pkt *)mess_buf; // parse pkt
-                total_trans += sizeof(*pkt);
-                if (Pid == -1 && Ip == -1) {
-                    Ip = from_addr.sin_addr.s_addr;
-                    Pid = pkt->pid;
-                    pd = fopen(pkt->d_fname, "wb");
+                /********* HANDLE SENDER REQUEST *********/
+                {
+                    bool sender_present = false;
+                    for (int i = 0; i < (int)sender_q.size(); i++) 
+                    {
+                        if (sender_q[i]->sin_addr.s_addr == tmp_from_addr->sin_addr.s_addr && 
+                            sender_q[i]->sin_port == tmp_from_addr->sin_port)
+                            {
+                                sender_present = true;
+                                break;
+                            }
+                    }
+                    if (!sender_present) 
+                        sender_q.push_back(tmp_from_addr);
+                    if (sender_q[0]->sin_addr.s_addr != tmp_from_addr->sin_addr.s_addr || sender_q[0]->sin_port != tmp_from_addr->sin_port)
+                        continue;
+                    if (!rcv_start && done == 0)
+                    {
+                        gettimeofday(&last_record_time, NULL);
+                        pd = fopen(pkt->d_fname, "wb");
+                        trans_start.tv_sec = last_record_time.tv_sec;
+                        rcv_start = true;
+                    }
+                    from_addr = *sender_q[0];
                 }
 
                 /************ HANDLE RECEIVE ***************/
@@ -224,15 +249,24 @@ int main(int argc, char *argv[])
         }
         else
         {
-            printf("timeout...nothing received for 5 seconds.\n");
-            gettimeofday(&now, NULL);
-            if (Cmp_time(last_recv_time, Zero_time) > 0)
+            /******* MSG *********/
             {
-                timersub(&now, &last_recv_time, &diff_time);
-                printf("last msg received %lf seconds ago.\n\n",
-                       diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
+                printf("timeout...nothing received for 5 seconds.\n");
+                gettimeofday(&now, NULL);
+                if (Cmp_time(last_recv_time, Zero_time) > 0)
+                {
+                    timersub(&now, &last_recv_time, &diff_time);
+                    printf("last msg received %lf seconds ago.\n\n",
+                        diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
+                }
             }
-        }
+
+            /******* SWITCH SENDER *******/
+            {
+                done = 0;
+                rcv_start = false;
+            }
+        }   
     }
 
     return 0; // should not invoke
