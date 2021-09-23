@@ -54,12 +54,13 @@ int main(int argc, char *argv[])
     double last_record_bytes = 0;
     bool start_trans = false;
     int num;
-    W_SIZE = 20;
 
     /* Parse commandline args */
     {
         Usage(argc, argv);
         printf("Sending to %s at port %d\n", Server_IP, Port);
+        if (isLAN) W_SIZE = L_WSIZE;
+        else W_SIZE = W_WSIZE;
         // read pd
         pd = fopen(s_fname, "rb");
         pd_end = fopen(s_fname, "rb");

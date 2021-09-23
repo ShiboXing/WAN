@@ -8,6 +8,8 @@
 #define MEGABYTES 1000000 // 1 megabytes = 1000000bytes
 #define MEGABITS 8        //1 megabytes = 8 megabits
 #define S_CACHE ".sender_cache/"
+#define L_WSIZE 40
+#define W_WSIZE 20
 
 extern long long W_SIZE;
 
