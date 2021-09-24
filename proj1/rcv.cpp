@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
                         printf("first 5 chars pkt: %c%c%c%c%c\n", pkt->data[0], pkt->data[1], pkt->data[2], pkt->data[3], pkt->data[4]);
                     }
                 }
-                else if (done == 1) /* SENDER's COMPLETED */
+                else if (done == 1 && pd.is_open()) /* SENDER's COMPLETED */
                 {
                     gettimeofday(&now, NULL);
                     timersub(&now, &trans_start, &diff_time);
