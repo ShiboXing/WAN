@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <algorithm>
 #include <ctime>
@@ -16,13 +17,12 @@ using namespace std;
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 static int Cmp_time(struct timeval t1, struct timeval t2);
-void init_receive(FILE *pd, struct net_pkt *pkt);
 void test_result();
 static const struct timeval Zero_time = {0, 0};
 // IO
 static int Port;
 static bool isLAN;
-FILE *pd;
+ofstream pd;
 // data structures
 static vector<net_pkt *> window;
 static set<string> senders;
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in name;
     struct sockaddr_in from_addr;
     struct sockaddr_in *tmp_from_addr;
-    vector<sockaddr_in*> sender_q;
+    vector<sockaddr_in *> sender_q;
     socklen_t from_len;
     int sock;
     fd_set mask;
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask and timeout */
         mask = read_mask;
-        timeout.tv_sec = 5;
+        timeout.tv_sec = 10;
         timeout.tv_usec = 0;
 
         /* Wait for message or timeout */
@@ -101,42 +101,44 @@ int main(int argc, char *argv[])
                 {
                     from_len = sizeof(from_addr);
                     memset(mess_buf, 0, PKT_DT_SIZE);
-                    tmp_from_addr = (sockaddr_in*)malloc(sizeof(tmp_from_addr));
+                    tmp_from_addr = (sockaddr_in *)malloc(sizeof(tmp_from_addr));
                     bytes = recvfrom(sock, mess_buf, sizeof(net_pkt), 0,
-                                    (struct sockaddr *)tmp_from_addr,
-                                    &from_len);
+                                     (struct sockaddr *)tmp_from_addr,
+                                     &from_len);
                     if (bytes == 0)
                         continue;                        // didn't receive anything
                     gettimeofday(&last_recv_time, NULL); // record time of receival
-                    pkt = (struct net_pkt *)mess_buf; // parse pkt
+                    pkt = (struct net_pkt *)mess_buf;    // parse pkt
                     total_trans += sizeof(*pkt);
                 }
                 /********* HANDLE SENDER REQUEST *********/
                 {
                     bool sender_present = false;
-                    for (int i = 0; i < (int)sender_q.size(); i++) 
+                    for (int i = 0; i < (int)sender_q.size(); i++)
                     {
-                        if (sender_q[i]->sin_addr.s_addr == tmp_from_addr->sin_addr.s_addr && 
+                        if (sender_q[i]->sin_addr.s_addr == tmp_from_addr->sin_addr.s_addr &&
                             sender_q[i]->sin_port == tmp_from_addr->sin_port)
-                            {
-                                sender_present = true;
-                                break;
-                            }
+                        {
+                            sender_present = true;
+                            break;
+                        }
                     }
-                    if (!sender_present) 
+                    if (!sender_present)
                         sender_q.push_back(tmp_from_addr);
-                    if (sender_q[0]->sin_addr.s_addr != tmp_from_addr->sin_addr.s_addr || sender_q[0]->sin_port != tmp_from_addr->sin_port)
+                    else if (sender_q[0]->sin_addr.s_addr != tmp_from_addr->sin_addr.s_addr || sender_q[0]->sin_port != tmp_from_addr->sin_port)
                     {
                         struct ack_pkt tmp_p;
                         tmp_p.cum_seq = -1;
                         sendto_dbg(sock, (char *)&tmp_p, sizeof(tmp_p), 0, (struct sockaddr *)tmp_from_addr,
-                               sizeof(from_addr)); 
+                                   sizeof(from_addr));
                         continue;
-                    }   
+                    }
                     if (!rcv_start)
                     {
+                        if (pd.is_open()) // guard for re-open
+                            continue;
                         gettimeofday(&last_record_time, NULL);
-                        pd = fopen(pkt->d_fname, "wb");
+                        pd.open(pkt->d_fname);
                         trans_start.tv_sec = last_record_time.tv_sec;
                         rcv_start = true;
                     }
@@ -167,7 +169,8 @@ int main(int argc, char *argv[])
                     sendto_dbg(sock, (char *)&p, sizeof(p), 0, (struct sockaddr *)&from_addr,
                                sizeof(from_addr)); // send the new cum-ack
                     success_trans += pkt->dt_size;
-                    init_receive(pd, pkt); //write to disk
+
+                    pd.write(pkt->data, pkt->dt_size); //write to disk
                     // dequeue buffer
                     while (window.size() != 0 && window.front()->seq == cum_seq + 1)
                     {
@@ -177,7 +180,7 @@ int main(int argc, char *argv[])
                                    sizeof(from_addr));
                         window.erase(window.begin()); // delete the buffered pkt
                         success_trans += pkt->dt_size;
-                        init_receive(pd, pkt); //write to disk
+                        pd.write(pkt->data, pkt->dt_size); //write to disk
                     }
                 }
                 /* FUTURE PKT */
@@ -185,13 +188,16 @@ int main(int argc, char *argv[])
                 {
                     // check seq is already in the window
                     bool present = false;
-                    for(long long i = 0; i < (long long)window.size(); i++) {
-                        if (window[i]->seq == pkt->seq) {
+                    for (long long i = 0; i < (long long)window.size(); i++)
+                    {
+                        if (window[i]->seq == pkt->seq)
+                        {
                             present = true;
                             break;
                         }
                     }
-                    if (present) continue;
+                    if (present)
+                        continue;
 
                     window.push_back(pkt);
                     sort(window.begin(), window.end(),
@@ -237,9 +243,10 @@ int main(int argc, char *argv[])
                         print_statistics(diff_time, trans_data, (double)success_trans / MEGABYTES);
                         last_record_time.tv_sec = now.tv_sec;
                         last_record_bytes = total_trans;
+                        printf("first 5 chars pkt: %c%c%c%c%c\n", pkt->data[0], pkt->data[1], pkt->data[2], pkt->data[3], pkt->data[4]);
                     }
                 }
-                else if (done == 1) /* SENDER's COMPLETED */
+                else if (done == 1 && pd.is_open()) /* SENDER's COMPLETED */
                 {
                     gettimeofday(&now, NULL);
                     timersub(&now, &trans_start, &diff_time);
@@ -250,15 +257,14 @@ int main(int argc, char *argv[])
                     total_trans = 0;
                     success_trans = 0;
                     last_record_bytes = 0;
-                    rcv_start = false;
-                    fflush(pd);
-                    fclose(pd);
+                    pd.flush();
+                    pd.close();
                 }
             }
         }
         else
         {
-            
+
             /******* MSG *********/
             {
                 printf("timeout...nothing received for 5 seconds.\n");
@@ -267,39 +273,34 @@ int main(int argc, char *argv[])
                 {
                     timersub(&now, &last_recv_time, &diff_time);
                     printf("last msg received %lf seconds ago.\n\n",
-                        diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
+                           diff_time.tv_sec + (diff_time.tv_usec / 1000000.0));
                 }
             }
-             /******* SWITCH SENDER *******/
-            if (done == 1) 
+            /******* SWITCH SENDER *******/
+            if (done == 1)
             {
-                if (sender_q.size() != 0) 
+                if (sender_q.size() != 0)
                 {
                     sender_q.erase(sender_q.begin());
                 }
                 done = 0;
                 rcv_start = false;
                 cum_seq = 0;
-            } 
-            
+            }
+
             // call the next sender if present
-            if(sender_q.size() > 0) 
+            if (sender_q.size() > 0)
             {
                 struct ack_pkt tmp_p;
                 tmp_p.cum_seq = cum_seq;
                 sendto_dbg(sock, (char *)&tmp_p, sizeof(tmp_p), 0, (struct sockaddr *)sender_q[0],
-                        sizeof(from_addr)); 
+                           sizeof(from_addr));
                 printf("switching sender!\n");
             }
-        }   
+        }
     }
 
     return 0; // should not invoke
-}
-
-void init_receive(FILE *pd, net_pkt *pkt)
-{
-    fwrite((const char *)pkt->data, 1, pkt->dt_size, pd);
 }
 
 /* Read commandline arguments */

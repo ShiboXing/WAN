@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
         if (isLAN) W_SIZE = L_WSIZE;
         else W_SIZE = W_WSIZE;
         // read pd
-        pd = fopen(s_fname, "rb");
-        pd_end = fopen(s_fname, "rb");
+        pd = fopen(s_fname, "r");
+        pd_end = fopen(s_fname, "r");
         fseek(pd_end, 0, SEEK_END); // get end pointer
         /* Open socket for sending */
         sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -96,8 +96,16 @@ int main(int argc, char *argv[])
     {
         /* (Re)set mask */
         mask = read_mask;
-        timeout.tv_sec = TIMEOUT_S;
-        timeout.tv_usec = TIMEOUT_MS;
+        if (isLAN)
+        {
+            timeout.tv_sec = L_TIMEOUT_S;
+            timeout.tv_usec = L_TIMEOUT_MS;
+        }
+        else
+        {
+            timeout.tv_sec = W_TIMEOUT_S;
+            timeout.tv_usec = W_TIMEOUT_MS;
+        }
 
         num = select(FD_SETSIZE, &mask, NULL, NULL, &timeout);
         // receive ACKS, NACKS
