@@ -10,13 +10,14 @@
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [
-                "localhost:5555 5"
+                "localhost:5555",
+                "5"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
+            "MIMode": "lldb",
             "preLaunchTask": "g++",
         },
         {
@@ -31,7 +32,7 @@
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
+            "MIMode": "lldb",
             "preLaunchTask": "g++",
         },
     ]

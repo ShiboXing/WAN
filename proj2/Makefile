@@ -20,8 +20,13 @@ run_rcv:
 	./rt_rcv 5555
 run_srv:
 	./rt_srv localhost:5555 5
-clean:
+
+clean: clean_file clean_debug
+
+clean_file:
 	rm *.o rt_rcv rt_srv
+clean_debug:
+	rm -r *.dSYM
 
 veryclean:
 	rm udp_stream
