@@ -10,8 +10,9 @@
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [
-                "localhost:5555",
-                "5"
+                "0",
+                "4444",
+                "5555"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -26,7 +27,9 @@
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [
-                "5555"
+                "0",
+                "localhost:5555",
+                "4444"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

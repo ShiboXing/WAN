@@ -3,11 +3,9 @@
         {
             "type": "cppbuild",
             "label": "g++",
-            "command": "g++",
+            "command": "make",
             "args": [
-                "-o",
-                "${fileDirname}/${fileBasenameNoExtension}",
-                "${fileDirname}/${fileBasenameNoExtension}.o"
+                "all"
             ],
             "options": {
                 "cwd": "${fileDirname}"
