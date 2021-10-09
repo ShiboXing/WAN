@@ -16,6 +16,7 @@
 static int svr_port;
 static int app_port;
 static int loss_perc;
+static unsigned long long int cum_seq = 0;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -59,6 +60,8 @@ int main(int argc, char *argv[]) {
                 struct ack_pkt* tmp_pkt = (ack_pkt*)malloc(sizeof(ack_pkt));
                 socklen_t from_len = sizeof(send_addr);
                 if (recvfrom(soc, tmp_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&send_addr, &from_len) > 0) continue;
+                sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
+                
             }
         } else {
             if (send_addr.sin_addr.s_addr != INADDR_ANY) {

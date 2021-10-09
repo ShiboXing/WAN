@@ -17,21 +17,40 @@ static char *svr_ip;
 static int svr_port;
 static int app_port;
 static int loss_perc;
-static int cum_seq = 0;
+static unsigned long long int cum_seq = 0;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 
 int main(int argc, char *argv[]) {
-    int soc, host_num;                
+    int soc, host_num;           
     struct sockaddr_in send_addr;
     struct hostent h_ent;
     struct hostent *p_h_ent;
     fd_set read_mask, tmp_mask;
     struct timeval timeout;
     {
-        
-    
+        Usage(argc, argv);
+        soc = socket(AF_INET, SOCK_DGRAM, 0);
+        if (soc < 0) {
+            perror("error opening sending socket");
+            exit(1);
+        } 
+        p_h_ent = gethostbyname(svr_ip);
+        memcpy(&h_ent, p_h_ent, sizeof(h_ent));
+        memcpy(&host_num, h_ent.h_addr_list[0], sizeof(host_num));
+        send_addr.sin_family = AF_INET; 
+        send_addr.sin_addr.s_addr = host_num;
+        send_addr.sin_port = htons(svr_port);
+        FD_ZERO(&read_mask);
+        FD_ZERO(&tmp_mask);
+        FD_SET(soc, &read_mask); 
+        printf("Successfully initialized with:\n");
+        printf("\tloss rate = %d\n", loss_perc);
+        printf("\tTarget IP = %s\n", svr_ip);
+        printf("\tsvr Port = %d\n", svr_port);
+        printf("\tapp Port = %d\n", app_port);
+    }
     for (;;) {
         /* good style to re-initialize */
         tmp_mask = read_mask;
@@ -45,11 +64,10 @@ int main(int argc, char *argv[]) {
                 printf("first 5 chars %d%d%d%d%d\n", tmp_pkt->data[0], tmp_pkt->data[1], tmp_pkt->data[2], tmp_pkt->data[3], tmp_pkt->data[4]);
             }
         } else {
-            struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
-            tmp_pkt->seq = cum_seq;
-            tmp_pkt->is_nack = false;
-            sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
-            request_sent = true;
+                struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
+                tmp_pkt->seq = cum_seq;
+                tmp_pkt->is_nack = false;
+                sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
         }
     }
 
