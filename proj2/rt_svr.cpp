@@ -18,34 +18,44 @@ static int svr_port;
 static int app_port;
 static int loss_perc;
 static unsigned long long int cum_seq = 0;
+static map<unsigned long long int, chrono::steady_clock::time_point> timetable;
 static map<unsigned long long int, chrono::steady_clock::time_point> window;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
 
 int main(int argc, char *argv[]) {
-    int soc;                
-    struct sockaddr_in send_addr; /* address of receiver */
+    int client_soc, app_soc;                
+    struct sockaddr_in client_addr, app_addr; /* address of receiver */
     fd_set read_mask, tmp_mask;
-    socklen_t from_len = sizeof(send_addr);
+    socklen_t from_len = sizeof(client_addr);
     struct timeval timeout;
     {
         Usage(argc, argv);
-        soc = socket(AF_INET, SOCK_DGRAM, 0);
-        if (soc < 0) {
+        client_soc = socket(AF_INET, SOCK_DGRAM, 0);
+        app_soc = socket(AF_INET, SOCK_DGRAM, 0);
+        if (client_soc < 0 or app_soc < 0) {
             perror("error opening sending socket");
             exit(1);
         } 
-        send_addr.sin_family = AF_INET; 
-        send_addr.sin_addr.s_addr = INADDR_ANY; 
-        send_addr.sin_port = htons(svr_port);
-        if (::bind(soc, (struct sockaddr *)&send_addr, sizeof(send_addr)) < 0 ) { 
+        client_addr.sin_family = AF_INET; 
+        client_addr.sin_addr.s_addr = INADDR_ANY; 
+        client_addr.sin_port = htons(svr_port);
+        if (::bind(client_soc, (struct sockaddr *)&client_addr, sizeof(client_addr)) < 0 ) { // bind client
+            perror("server bind error");
+            exit(1);
+        }
+        app_addr.sin_family = AF_INET; 
+        app_addr.sin_addr.s_addr = INADDR_ANY; 
+        app_addr.sin_port = htons(app_port);
+        if (::bind(app_soc, (struct sockaddr *)&app_addr, sizeof(app_addr)) < 0 ) { // bind app
             perror("server bind error");
             exit(1);
         }
         FD_ZERO(&read_mask);
         FD_ZERO(&tmp_mask);
-        FD_SET(soc, &read_mask); 
+        FD_SET(client_soc, &read_mask); 
+        FD_SET(app_soc, &read_mask);
         printf("Successfully initialized with:\n");
         printf("\tloss rate = %d\n", loss_perc);
         printf("\tsvr Port = %d\n", svr_port);
@@ -58,36 +68,42 @@ int main(int argc, char *argv[]) {
         timeout.tv_usec = 0;
         int num = select(FD_SETSIZE, &tmp_mask, NULL, NULL, &timeout);
         if (num > 0) {
+            struct ack_pkt* tmp_pkt = (ack_pkt*)malloc(sizeof(ack_pkt));
+            struct net_pkt* data_pkt = (net_pkt*)malloc(sizeof(net_pkt));
+            struct stream_pkt* app_pkt = (stream_pkt*)malloc(sizeof(stream_pkt));
             /****** Receiving from client ******/
-            if (FD_ISSET(soc, &tmp_mask)) {
-                struct ack_pkt* tmp_pkt = (ack_pkt*)malloc(sizeof(ack_pkt));
-                struct net_pkt* data_pkt = (net_pkt*)malloc(sizeof(net_pkt));
+            if (FD_ISSET(client_soc, &tmp_mask)) {
                 data_pkt->senderTS = Time::now();
-                if (recvfrom(soc, tmp_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&send_addr, &from_len) <= 0) continue;
+                if (recvfrom(client_soc, tmp_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&client_addr, &from_len) <= 0) continue;
                 if (tmp_pkt->seq == 0) { /* Phase I */
-                    sendto_dbg(soc, (char*)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
+                    sendto_dbg(client_soc, (char*)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                 } else { /* Phase II */
                     if (tmp_pkt->is_nack == true) { // NACK
                         memcpy(data_pkt->data, &tmp_pkt->seq, sizeof(tmp_pkt->seq));
                         printf(YELLOW "first 5 chars %d%d%d%d%d\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3],  data_pkt->data[4]);
                         data_pkt->seq = tmp_pkt->seq;
-                        if (window.find(tmp_pkt->seq) == window.end()) {
-                            window[tmp_pkt->seq] = data_pkt->senderTS;
+                        if (timetable.find(tmp_pkt->seq) == timetable.end()) {
+                            timetable[tmp_pkt->seq] = data_pkt->senderTS;
                         } else {
-                            data_pkt->senderTS = window[tmp_pkt->seq];
+                            data_pkt->senderTS = timetable[tmp_pkt->seq];
                         }
-                        sendto_dbg(soc, (char*)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
+                        sendto_dbg(client_soc, (char*)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                     } else if (cum_seq < tmp_pkt->seq) { // ACK 
                         cum_seq = tmp_pkt->seq;
-                        while (window.begin()->first < cum_seq) window.erase(window.begin());
+                        while (timetable.begin()->first < cum_seq) timetable.erase(timetable.begin());
                     }
                 }
             }
             /****** Receiving from app ******/
+            if (FD_ISSET(app_soc, &tmp_mask)) {
+                if (recvfrom(app_soc, app_pkt, sizeof(stream_pkt), 0, (struct sockaddr *)&app_addr, &from_len) <= 0) continue;
+                printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
+                // sendto_dbg(client_soc, (char*)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
+            }
 
         } else {
             printf("%ld seconds, %d microseconds passed with no data received...", timeout.tv_sec, timeout.tv_usec);
-                // struct net_pkt* tmp_pkt = (net_pkt*) malloc(sizeof(net_pkt));
+            window[]
         }
     }
 

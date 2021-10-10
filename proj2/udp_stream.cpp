@@ -69,7 +69,6 @@ int main(int argc, char *argv[]) {
         gettimeofday(&now, NULL);
         send_pkt.ts_sec = now.tv_sec;
         send_pkt.ts_usec = now.tv_usec;
-
         /* send the packet */
         ret = sendto(ss, (char *)&send_pkt, sizeof(send_pkt), 0,
                 (struct sockaddr*)&send_addr, sizeof(send_addr));

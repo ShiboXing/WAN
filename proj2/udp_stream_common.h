@@ -25,7 +25,7 @@ struct net_pkt {
     Time::time_point senderTS;
     unsigned long long int seq;
     bool is_end;
-    char data[1383];
+    char data[MAX_DATA_LEN];
 } __attribute__((packed));
 
 struct ack_pkt {

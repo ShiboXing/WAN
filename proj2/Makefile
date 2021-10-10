@@ -19,6 +19,8 @@ run_rcv:
 	./rt_rcv $(lr) $(svr_ip):$(svr_port) $(app_port)
 run_svr:
 	./rt_svr $(lr) $(app_port) $(svr_port)
+run_stream:
+	./udp_stream localhost:4444 1000000
 clean:
 	rm *.o
 	rm udp_stream

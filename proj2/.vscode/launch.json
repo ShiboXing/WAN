@@ -38,5 +38,21 @@
             "MIMode": "lldb",
             "preLaunchTask": "g++",
         },
+        {
+            "name": "udp_stream",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [
+                "localhost:4444",
+                "1000000"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "g++",
+        },
     ]
 }
