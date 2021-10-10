@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS = -std=c++11 -c -Wall -pedantic -g 
-lr=0
+lr=30
 svr_ip=localhost
 svr_port=5555
 app_port=4444

@@ -66,15 +66,22 @@ int main(int argc, char *argv[]) {
         int num = select(FD_SETSIZE, &tmp_mask, NULL, NULL, &timeout);
         if (num > 0) {
             if (FD_ISSET(soc, &tmp_mask)) {
+                struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
                 struct net_pkt* data_pkt = (net_pkt*) malloc(sizeof(net_pkt));
                 if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) == 0) continue;
-                if (cum_seq == 0 && delta == numeric_limits<unsigned int>::max()) { // phase I
+                /* phase I */
+                if (cum_seq == 0 && delta == numeric_limits<unsigned int>::max()) { 
                     delta = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count();
-                    cout << BOLDGREEN << "delta acquired: " << delta << "\n" << RESET;
-                } else {
-                    
+                    cum_seq = 1;
+                    cout << BOLDGREEN << "delta acquired: " << delta << " miliseconds\n" << RESET;
+                } 
+                if (data_pkt->seq == cum_seq) {
+                    cum_seq = data_pkt->seq + 1;
+                    tmp_pkt->is_nack = false;
+                    tmp_pkt->seq = cum_seq;
+                    sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
+                    printf(YELLOW "first 5 chars: %d%d%d%d%d\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3], data_pkt->data[4]);
                 }
-                printf(YELLOW "first 5 chars %d%d%d%d%d:\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3], data_pkt->data[4]);
             }
         } else {
             struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
