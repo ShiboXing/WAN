@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits>
+#include <map>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -21,9 +22,10 @@ static char *svr_ip;
 static int svr_port;
 static int app_port;
 static int loss_perc;
-static int latency; // miliseconds
 static unsigned int delta = numeric_limits<unsigned int>::max();
 static unsigned long long int cum_seq = 0;
+static map<unsigned long long int, chrono::steady_clock::time_point> timetable;
+static map<unsigned long long int, char*> window;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -34,8 +36,11 @@ int main(int argc, char *argv[]) {
     struct hostent h_ent;
     struct hostent *p_h_ent;
     fd_set read_mask, tmp_mask;    
-    // cout << "test time :: " << chrono::duration_cast<MS>(Time::now() - Time::now()).count();
+    
     struct timeval timeout;
+    timeout.tv_sec = TIMEOUT_S;
+    timeout.tv_usec = TIMEOUT_MS;
+
     {
         Usage(argc, argv);
         soc = socket(AF_INET, SOCK_DGRAM, 0);
@@ -61,10 +66,8 @@ int main(int argc, char *argv[]) {
     for (;;) {
         /* good style to re-initialize */
         tmp_mask = read_mask;
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
         int num = select(FD_SETSIZE, &tmp_mask, NULL, NULL, &timeout);
-        if (num > 0) {
+        if (num > 0) { // ON RECEIVED: SEND ACKS
             if (FD_ISSET(soc, &tmp_mask)) {
                 struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
                 struct net_pkt* data_pkt = (net_pkt*) malloc(sizeof(net_pkt));
@@ -74,20 +77,41 @@ int main(int argc, char *argv[]) {
                     delta = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count();
                     cum_seq = 1;
                     cout << BOLDGREEN << "delta acquired: " << delta << " miliseconds\n" << RESET;
+                    continue;
                 } 
-                if (data_pkt->seq == cum_seq) {
-                    cum_seq = data_pkt->seq + 1;
+                /* phase II */
+                else if (data_pkt->seq == cum_seq) { // SEQUENTIAL     
                     tmp_pkt->is_nack = false;
                     tmp_pkt->seq = cum_seq;
+                    sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)); 
+                    printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
+                    cum_seq = tmp_pkt->seq + 1;
+                    unsigned long long int i = cum_seq;
+                    for (; i < cum_seq + W_SIZE; i++) {
+                        if (window.find(i) == window.end()) {
+                            break;
+                        }
+                        tmp_pkt->seq = i;
+                        sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)); 
+                        printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
+                    }
+                    cum_seq = i; // update cum_seq, (outside for in case the entire window is filled, painful)
+                } else if (data_pkt->seq > cum_seq) { // GAPPED
+                    printf(YELLOW "[BUFFERED] seq %llu\n" RESET, data_pkt->seq);
+                } 
+                timetable[data_pkt->seq] = data_pkt->senderTS;
+                window[data_pkt->seq] = (char*)malloc(sizeof(data_pkt->data));
+                memcpy(window[data_pkt->seq], data_pkt->data, sizeof(data_pkt->data));
+            }
+        } else { // SEND NACKS 
+            for (unsigned long long int i = cum_seq; i < cum_seq + W_SIZE; i++) {
+                if (window.find(i) == window.end()) {
+                    struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
+                    tmp_pkt->seq = i;
+                    tmp_pkt->is_nack = true;
                     sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
-                    printf(YELLOW "first 5 chars: %d%d%d%d%d\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3], data_pkt->data[4]);
                 }
             }
-        } else {
-            struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
-            tmp_pkt->seq = cum_seq;
-            tmp_pkt->is_nack = true;
-            sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
         }
     }
 

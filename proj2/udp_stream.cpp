@@ -69,6 +69,7 @@ int main(int argc, char *argv[]) {
         gettimeofday(&now, NULL);
         send_pkt.ts_sec = now.tv_sec;
         send_pkt.ts_usec = now.tv_usec;
+        memcpy(send_pkt.data, &send_pkt.seq, sizeof(send_pkt.seq));
         /* send the packet */
         ret = sendto(ss, (char *)&send_pkt, sizeof(send_pkt), 0,
                 (struct sockaddr*)&send_addr, sizeof(send_addr));

@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [
-                "50",
+                "30",
                 "4444",
                 "5555"
             ],
@@ -27,7 +27,7 @@
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [
-                "50",
+                "30",
                 "localhost:5555",
                 "4444"
             ],
