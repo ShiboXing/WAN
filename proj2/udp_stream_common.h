@@ -10,6 +10,7 @@
 #define TIMEOUT_MS 10000
 #define TIMEOUT_S 0
 #define W_SIZE 20
+#define LATENCY 1000 // miliseconds
 
 #include <chrono>
 using namespace std;

@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
         }
 
         /* DELIVER PACKETS to app (painful) */
-        while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta) {
+        while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta + LATENCY) {
             struct stream_pkt app_pkt;
             struct timeval now;
             gettimeofday(&now, NULL);
