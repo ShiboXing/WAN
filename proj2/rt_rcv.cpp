@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
                     tmp_pkt->is_nack = false;
                     tmp_pkt->seq = cum_seq;
                     sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)); 
-                    printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
+                    printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     cum_seq = tmp_pkt->seq + 1;
 
                     unsigned long long int i = cum_seq; 
@@ -100,12 +100,12 @@ int main(int argc, char *argv[]) {
                         if (window.find(i) == window.end()) break;
                         tmp_pkt->seq = i;
                         sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)); 
-                        printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
+                        printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     }
                     cum_seq = i; // update cum_seq outside the for-loop in case the entire window is filled (painful)
 
                 } else if (data_pkt->seq > cum_seq) { /* GAPPED */
-                    printf(YELLOW "[BUFFERED] seq %llu\n" RESET, data_pkt->seq);
+                    printf(YELLOW "[BUFFERED] seq %llu" RESET "\n", data_pkt->seq);
                 } 
                 /* cache for smooth delivery */
                 timetable[data_pkt->senderTS] = data_pkt->seq;

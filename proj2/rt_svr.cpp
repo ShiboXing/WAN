@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
                         cum_seq = tmp_pkt->seq;
                         while (timetable.begin()->first < cum_seq) timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq) window.erase(window.begin());
-                        printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
+                        printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     }
                 }
             }
