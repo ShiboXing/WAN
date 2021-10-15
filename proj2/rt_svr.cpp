@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
             perror("error opening sending socket");
             exit(1);
         } 
+        
         client_addr.sin_family = AF_INET; 
         client_addr.sin_addr.s_addr = INADDR_ANY; 
         client_addr.sin_port = htons(svr_port);
@@ -45,6 +46,7 @@ int main(int argc, char *argv[]) {
             perror("server bind error");
             exit(1);
         }
+
         app_addr.sin_family = AF_INET; 
         app_addr.sin_addr.s_addr = INADDR_ANY; 
         app_addr.sin_port = htons(app_port);
@@ -56,7 +58,7 @@ int main(int argc, char *argv[]) {
         FD_ZERO(&tmp_mask);
         FD_SET(client_soc, &read_mask); 
         FD_SET(app_soc, &read_mask);
-        printf("Successfully initialized with:\n");
+        printf(RESET "Successfully initialized with:\n");
         printf("\tloss rate = %d\n", loss_perc);
         printf("\tsvr Port = %d\n", svr_port);
         printf("\tapp Port = %d\n", app_port);
@@ -94,7 +96,7 @@ int main(int argc, char *argv[]) {
                         cum_seq = tmp_pkt->seq;
                         while (timetable.begin()->first < cum_seq) timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq) window.erase(window.begin());
-                        printf(YELLOW "ACK seq %llu\n" RESET, tmp_pkt->seq);
+                        printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
                     }
                 }
             }

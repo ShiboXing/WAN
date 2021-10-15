@@ -24,7 +24,7 @@ static int app_port;
 static int loss_perc;
 static unsigned int delta = numeric_limits<unsigned int>::max();
 static unsigned long long int cum_seq = 0;
-static map<unsigned long long int, chrono::steady_clock::time_point> timetable;
+static map<chrono::steady_clock::time_point, unsigned long long int> timetable;
 static map<unsigned long long int, char*> window;
 
 static void Usage(int argc, char *argv[]);
@@ -32,15 +32,10 @@ static void Print_help();
 
 int main(int argc, char *argv[]) {
     int soc, host_num;     
-    struct sockaddr_in send_addr;
+    struct sockaddr_in send_addr, app_addr;
     struct hostent h_ent;
     struct hostent *p_h_ent;
     fd_set read_mask, tmp_mask;    
-    
-    struct timeval timeout;
-    timeout.tv_sec = TIMEOUT_S;
-    timeout.tv_usec = TIMEOUT_MS;
-
     {
         Usage(argc, argv);
         soc = socket(AF_INET, SOCK_DGRAM, 0);
@@ -54,6 +49,14 @@ int main(int argc, char *argv[]) {
         send_addr.sin_family = AF_INET; 
         send_addr.sin_addr.s_addr = host_num;
         send_addr.sin_port = htons(svr_port);
+
+        p_h_ent = gethostbyname("localhost");
+        memcpy(&h_ent, p_h_ent, sizeof(h_ent));
+        memcpy(&host_num, h_ent.h_addr_list[0], sizeof(host_num));
+        app_addr.sin_family = AF_INET; 
+        app_addr.sin_addr.s_addr = host_num;
+        app_addr.sin_port = htons(app_port);
+        
         FD_ZERO(&read_mask);
         FD_ZERO(&tmp_mask);
         FD_SET(soc, &read_mask); 
@@ -63,11 +66,16 @@ int main(int argc, char *argv[]) {
         printf("\tsvr Port = %d\n", svr_port);
         printf("\tapp Port = %d\n", app_port);
     }
+
     for (;;) {
-        /* good style to re-initialize */
+        // good style to re-initialize 
         tmp_mask = read_mask;
+        struct timeval timeout;
+        timeout.tv_sec = TIMEOUT_S;
+        timeout.tv_usec = TIMEOUT_MS;
         int num = select(FD_SETSIZE, &tmp_mask, NULL, NULL, &timeout);
-        if (num > 0) { // ON RECEIVED: SEND ACKS
+        
+        if (num > 0) { // ON RECEIVED, 
             if (FD_ISSET(soc, &tmp_mask)) {
                 struct ack_pkt* tmp_pkt = (ack_pkt*) malloc(sizeof(ack_pkt));
                 struct net_pkt* data_pkt = (net_pkt*) malloc(sizeof(net_pkt));
@@ -80,26 +88,27 @@ int main(int argc, char *argv[]) {
                     continue;
                 } 
                 /* phase II */
-                else if (data_pkt->seq == cum_seq) { // SEQUENTIAL     
+                else if (data_pkt->seq == cum_seq) { /* SEQUENTIAL */  
                     tmp_pkt->is_nack = false;
                     tmp_pkt->seq = cum_seq;
                     sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)); 
                     printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
                     cum_seq = tmp_pkt->seq + 1;
-                    unsigned long long int i = cum_seq;
-                    for (; i < cum_seq + W_SIZE; i++) {
-                        if (window.find(i) == window.end()) {
-                            break;
-                        }
+
+                    unsigned long long int i = cum_seq; 
+                    for (; i < cum_seq + W_SIZE; i++) { // dequeue all sequantial packets (painful)
+                        if (window.find(i) == window.end()) break;
                         tmp_pkt->seq = i;
                         sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr)); 
                         printf(YELLOW "[ACK] seq %llu\n" RESET, tmp_pkt->seq);
                     }
-                    cum_seq = i; // update cum_seq, (outside for in case the entire window is filled, painful)
-                } else if (data_pkt->seq > cum_seq) { // GAPPED
+                    cum_seq = i; // update cum_seq outside the for-loop in case the entire window is filled (painful)
+
+                } else if (data_pkt->seq > cum_seq) { /* GAPPED */
                     printf(YELLOW "[BUFFERED] seq %llu\n" RESET, data_pkt->seq);
                 } 
-                timetable[data_pkt->seq] = data_pkt->senderTS;
+                /* cache for smooth delivery */
+                timetable[data_pkt->senderTS] = data_pkt->seq;
                 window[data_pkt->seq] = (char*)malloc(sizeof(data_pkt->data));
                 memcpy(window[data_pkt->seq], data_pkt->data, sizeof(data_pkt->data));
             }
@@ -112,6 +121,24 @@ int main(int argc, char *argv[]) {
                     sendto_dbg(soc, (char*)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
                 }
             }
+        }
+
+        /* DELIVER PACKETS to app (painful) */
+        while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta) {
+            struct stream_pkt app_pkt;
+            struct timeval now;
+            gettimeofday(&now, NULL);
+
+            unsigned long long int tmp_seq = timetable.begin()->second;
+            cum_seq = (tmp_seq > cum_seq) ? tmp_seq : cum_seq; // update cum_seq if needed
+            memcpy(app_pkt.data, window[tmp_seq], sizeof(app_pkt.data));
+            app_pkt.seq = tmp_seq;
+            app_pkt.ts_sec = now.tv_sec;
+            app_pkt.ts_usec = now.tv_usec;
+            sendto(soc, (char*)&app_pkt, sizeof(app_pkt), 0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
+
+            timetable.erase(timetable.begin());
+            window.erase(tmp_seq);
         }
     }
 
