@@ -14,7 +14,8 @@
 
 #include <chrono>
 using namespace std;
-typedef chrono::high_resolution_clock Time;
+typedef chrono::time_point<chrono::steady_clock> Tp;
+typedef chrono::steady_clock Time;
 typedef chrono::milliseconds MS;
 typedef chrono::duration<float> Fsec;
 
@@ -26,7 +27,7 @@ struct stream_pkt {
 };
 
 struct net_pkt {
-    Time::time_point senderTS;
+    Tp senderTS;
     unsigned long long int seq;
     bool is_end;
     char data[MAX_DATA_LEN];

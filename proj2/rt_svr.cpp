@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
                 window[(unsigned long long int)app_pkt->seq] = app_pkt->data;
             }
         } else {
-            printf("%ld seconds, %d microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
+            printf("%ld seconds, %ld microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
         }
     }
 
