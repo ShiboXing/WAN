@@ -10,8 +10,8 @@ all: udp_stream udp_stream_rcv rt_rcv rt_svr
 
 rt_rcv: sendto_dbg.o rt_rcv.o
 		$(CC) -o rt_rcv rt_rcv.o sendto_dbg.o
-rt_svr: sendto_dbg.o rt_svr.o
-		$(CC) -o rt_svr rt_svr.o sendto_dbg.o
+rt_svr: sendto_dbg.o stat_display.o rt_svr.o
+		$(CC) -o rt_svr rt_svr.o sendto_dbg.o stat_display.o
 udp_stream: udp_stream.o
 	    $(CC) -o udp_stream udp_stream.o
 udp_stream_rcv: udp_stream_rcv.o
