@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
 
     double data_bits = 0;
     int data_pkts = 0;
+    int re_pkts = 0;
     struct timeval startTime;
     struct timeval recordTime;
     struct timeval currentTime;
@@ -86,7 +87,6 @@ int main(int argc, char *argv[])
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
         int num = select(FD_SETSIZE, &tmp_mask, NULL, NULL, &timeout);
-        gettimeofday(&currentTime, NULL);
         if (num > 0)
         {
             struct ack_pkt *tmp_pkt = (ack_pkt *)malloc(sizeof(ack_pkt));
@@ -101,10 +101,6 @@ int main(int argc, char *argv[])
                 if (tmp_pkt->seq == 0)
                 { /* Phase I */
                     sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-                    if (data_pkt->seq > max_seq)
-                    {
-                        max_seq = data_pkt->seq;
-                    }
                 }
                 else
                 { /* Phase II */
@@ -117,7 +113,7 @@ int main(int argc, char *argv[])
                             data_pkt->seq = tmp_pkt->seq;
                             memcpy(data_pkt->data, window[tmp_pkt->seq], sizeof(data_pkt->data));
                             sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-
+                            re_pkts += 1; //retransmit pkts
                             if (timetable.find(tmp_pkt->seq) == timetable.end())
                             {
                                 timetable[tmp_pkt->seq] = data_pkt->senderTS;
@@ -132,14 +128,16 @@ int main(int argc, char *argv[])
                     else if (cum_seq < tmp_pkt->seq)
                     { // ACK
                         if (!isStart)
-                        {
+                        { //Record time of start
                             gettimeofday(&startTime, NULL);
                             recordTime.tv_sec = startTime.tv_sec;
                             recordTime.tv_usec = startTime.tv_usec;
                             isStart = true;
                         }
-                        data_pkts += 1;
-                        data_bits += sizeof(*data_pkt);
+
+                        data_pkts += 1;                 //success send one pkt
+                        data_bits += sizeof(*data_pkt); //success send data in bits
+
                         cum_seq = tmp_pkt->seq;
                         while (timetable.begin()->first < cum_seq)
                             timetable.erase(timetable.begin());
@@ -147,20 +145,22 @@ int main(int argc, char *argv[])
                             window.erase(window.begin());
                         if (cum_seq > max_seq)
                         {
-                            max_seq = cum_seq;
+                            max_seq = cum_seq; // record highest seq number
                         }
                         //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     }
-                    if (currentTime.tv_sec - recordTime.tv_sec >= 5 && isStart && last_record_seq != max_seq)
-                    {
-                        duration = currentTime.tv_sec - startTime.tv_sec;
-                        duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
-                        print_stat(duration, max_seq, data_bits, data_pkts);
-                        recordTime.tv_sec = currentTime.tv_sec;
-                        recordTime.tv_usec = currentTime.tv_usec;
-                        last_record_seq = max_seq;
-                    }
                 }
+            }
+            /****** Print stats every 5 seconds ******/
+            gettimeofday(&currentTime, NULL);
+            if (currentTime.tv_sec - recordTime.tv_sec >= 5 && isStart)
+            {
+                duration = currentTime.tv_sec - startTime.tv_sec;
+                duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
+                print_stat(duration, max_seq, data_bits, data_pkts, false, 0, 0, 0, re_pkts);
+                recordTime.tv_sec = currentTime.tv_sec;
+                recordTime.tv_usec = currentTime.tv_usec;
+                last_record_seq = max_seq;
             }
             /****** Receiving from app ******/
             if (FD_ISSET(app_soc, &tmp_mask))
