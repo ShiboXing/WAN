@@ -23,7 +23,7 @@ static char *svr_ip;
 static int svr_port;
 static int app_port;
 static int loss_perc;
-static signed int delta = numeric_limits<unsigned int>::max();
+static int delta = 0xffff;
 static int32_t cum_seq = 0;
 static map<chrono::steady_clock::time_point, int32_t> timetable;
 static map<int32_t, char *> window;
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
                     continue;
                 one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // calculate oneway delay for each pkt
                 /* phase I */
-                if (cum_seq == 0 && delta == numeric_limits<unsigned int>::max())
+                if (cum_seq == 0 && delta == 0xffff)
                 {
                     delta = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count();
                     cum_seq = 1;
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
 
             int32_t tmp_seq = timetable.begin()->second;
             cum_seq = (tmp_seq > cum_seq) ? (int32_t)tmp_seq : cum_seq; // update cum_seq if needed
-            memcpy(app_pkt.data, window[tmp_seq], sizeof(app_pkt.data));
+            memcpy(app_pkt.data, &window[tmp_seq], sizeof(app_pkt.data));
 
             app_pkt.seq = tmp_seq;
             app_pkt.ts_sec = now.tv_sec;
