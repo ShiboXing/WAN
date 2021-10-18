@@ -1,6 +1,6 @@
 #include "stat_display.h"
 
-void print_stat(long int duration, unsigned long long int max_seq, double data_bits, int data_pkts, bool isRcv, double avg_delay, double min_delay, double max_delay, int re_pkts)
+void print_stat(long int duration, int32_t max_seq, double data_bits, int data_pkts, bool isRcv, double avg_delay, double min_delay, double max_delay, int re_pkts)
 {
     double rate = data_bits / (1000000 * duration);
     double rate_pkt = data_pkts / (duration);

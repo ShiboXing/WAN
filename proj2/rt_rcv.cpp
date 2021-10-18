@@ -24,9 +24,9 @@ static int svr_port;
 static int app_port;
 static int loss_perc;
 static signed int delta = numeric_limits<unsigned int>::max();
-static unsigned long long int cum_seq = 0;
-static map<chrono::steady_clock::time_point, unsigned long long int> timetable;
-static map<unsigned long long int, char *> window;
+static int32_t cum_seq = 0;
+static map<chrono::steady_clock::time_point, int32_t> timetable;
+static map<int32_t, char *> window;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -44,9 +44,9 @@ int main(int argc, char *argv[])
     double max_delay = chrono::milliseconds::min().count();
 
     long int duration;
-    unsigned long long int max_seq = 0;
+    int32_t max_seq = 0;
     bool isStart = false;
-    static unsigned long long int last_record_seq = 0;
+    //static int32_t last_record_seq = 0;
 
     int soc, host_num;
     struct sockaddr_in send_addr, app_addr;
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
                     sendto_dbg(soc, (char *)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
                     //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     cum_seq = tmp_pkt->seq + 1;
-                    unsigned long long int i = cum_seq;
+                    int32_t i = cum_seq;
                     for (; i < cum_seq + W_SIZE; i++)
                     { // dequeue all sequantial packets (painful)
                         if (window.find(i) == window.end())
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
         }
         else
         { // SEND NACKS
-            for (unsigned long long int i = cum_seq; i < cum_seq + W_SIZE; i++)
+            for (int32_t i = cum_seq; i < cum_seq + W_SIZE; i++)
             {
                 if (window.find(i) == window.end())
                 {
@@ -188,19 +188,20 @@ int main(int argc, char *argv[])
             print_stat(duration, max_seq, data_bits, data_pkts, true, avg_delay, min_delay, max_delay, 0);
             recordTime.tv_sec = currentTime.tv_sec;
             recordTime.tv_usec = currentTime.tv_usec;
-            last_record_seq = max_seq;
+            //last_record_seq = max_seq;
         }
 
         /* DELIVER PACKETS to app (painful) */
+        struct stream_pkt app_pkt;
         while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta + LATENCY)
         {
-            struct stream_pkt app_pkt;
             struct timeval now;
             gettimeofday(&now, NULL);
 
-            unsigned long long int tmp_seq = timetable.begin()->second;
-            cum_seq = (tmp_seq > cum_seq) ? tmp_seq : cum_seq; // update cum_seq if needed
+            int32_t tmp_seq = timetable.begin()->second;
+            cum_seq = (tmp_seq > cum_seq) ? (int32_t)tmp_seq : cum_seq; // update cum_seq if needed
             memcpy(app_pkt.data, window[tmp_seq], sizeof(app_pkt.data));
+
             app_pkt.seq = tmp_seq;
             app_pkt.ts_sec = now.tv_sec;
             app_pkt.ts_usec = now.tv_usec;

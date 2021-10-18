@@ -18,9 +18,9 @@
 static int svr_port;
 static int app_port;
 static int loss_perc;
-static unsigned long long int cum_seq = 0;
-static map<unsigned long long int, chrono::steady_clock::time_point> timetable;
-static map<unsigned long long int, char *> window;
+static int32_t cum_seq = 0;
+static map<int32_t, chrono::steady_clock::time_point> timetable;
+static map<int32_t, char *> window;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -39,9 +39,9 @@ int main(int argc, char *argv[])
     struct timeval recordTime;
     struct timeval currentTime;
     long int duration;
-    unsigned long long int max_seq = 0;
+    int32_t max_seq = 0;
     bool isStart = false;
-    static unsigned long long int last_record_seq = 0;
+    //static int32_t last_record_seq = 0;
 
     struct timeval timeout;
     {
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
                 print_stat(duration, max_seq, data_bits, data_pkts, false, 0, 0, 0, re_pkts);
                 recordTime.tv_sec = currentTime.tv_sec;
                 recordTime.tv_usec = currentTime.tv_usec;
-                last_record_seq = max_seq;
+                //last_record_seq = max_seq;
             }
             /****** Receiving from app ******/
             if (FD_ISSET(app_soc, &tmp_mask))
@@ -171,8 +171,8 @@ int main(int argc, char *argv[])
                 }
 
                 // printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
-                window[(unsigned long long int)app_pkt->seq] = (char *)malloc(sizeof(app_pkt->data));
-                window[(unsigned long long int)app_pkt->seq] = app_pkt->data;
+                window[(int32_t)app_pkt->seq] = (char *)malloc(sizeof(app_pkt->data));
+                window[(int32_t)app_pkt->seq] = app_pkt->data;
             }
         }
         else
