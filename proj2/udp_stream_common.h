@@ -7,7 +7,7 @@
 #define MAX_DATA_LEN 1300
 #define REPORT_SEC 5 /* print status every REPORT_SEC seconds */
 #define W_SIZE_PER_SECOND 1785
-#define TIMEOUT_MS 10000
+#define TIMEOUT_MS 12000
 #define TIMEOUT_S 0
 #define W_SIZE 20
 #define LATENCY 1000 // miliseconds
