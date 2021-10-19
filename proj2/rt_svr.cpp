@@ -147,7 +147,6 @@ int main(int argc, char *argv[])
                         {
                             max_seq = cum_seq; // record highest seq number
                         }
-                        //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     }
                 }
             }
@@ -166,9 +165,7 @@ int main(int argc, char *argv[])
             if (FD_ISSET(app_soc, &tmp_mask))
             {
                 if (recvfrom(app_soc, app_pkt, sizeof(stream_pkt), 0, (struct sockaddr *)&app_addr, &from_len) <= 0)
-                {
                     continue;
-                }
 
                 // printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
                 window[(int32_t)app_pkt->seq] = (char *)malloc(sizeof(app_pkt->data));
@@ -177,7 +174,6 @@ int main(int argc, char *argv[])
         }
         else
         {
-
             printf("%ld seconds, %d microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
         }
     }
