@@ -18,7 +18,7 @@
 static int svr_port;
 static int app_port;
 static int loss_perc;
-static int32_t cum_seq = 0;
+static int32_t cum_seq = 0, cache_seq = 1;
 static map<int32_t, chrono::steady_clock::time_point> timetable;
 static map<int32_t, char *> window;
 
@@ -28,7 +28,8 @@ static void Print_help();
 int main(int argc, char *argv[])
 {
     int client_soc, app_soc;
-    struct sockaddr_in client_addr, app_addr; /* address of receiver */
+    struct sockaddr_in client_addr, app_addr, curr_client_addr; /* addresses of receiver */
+    curr_client_addr.sin_addr.s_addr = 0;
     fd_set read_mask, tmp_mask;
     socklen_t from_len = sizeof(client_addr);
 
@@ -98,13 +99,25 @@ int main(int argc, char *argv[])
                 data_pkt->senderTS = Time::now();
                 if (recvfrom(client_soc, tmp_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&client_addr, &from_len) <= 0)
                     continue;
-                if (tmp_pkt->seq == 0)
-                { /* Phase I */
-                    sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-                }
-                else
-                { /* Phase II */
+                
+                if (tmp_pkt->seq == 0)  /* Phase I */
+                { 
+                    if (curr_client_addr.sin_addr.s_addr != 0 && (client_addr.sin_addr.s_addr != curr_client_addr.sin_addr.s_addr
+                        || curr_client_addr.sin_port != client_addr.sin_port))
+                    {
 
+                        data_pkt->seq = -1;
+                        sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
+                    }
+                    else 
+                    {
+                        sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
+                        curr_client_addr = client_addr;
+                    
+                    }
+                }
+                else                    /* Phase II */
+                { 
                     if (tmp_pkt->is_nack == true)
                     { // NACK
 
@@ -113,15 +126,12 @@ int main(int argc, char *argv[])
                             data_pkt->seq = tmp_pkt->seq;
                             memcpy(data_pkt->data, window[tmp_pkt->seq], sizeof(data_pkt->data));
                             sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-                            re_pkts += 1; //retransmit pkts
-                            if (timetable.find(tmp_pkt->seq) == timetable.end())
-                            {
+                            re_pkts += 1; //[stat] retransmit pkts
+                            if (timetable.find(tmp_pkt->seq) == timetable.end()) // new request
                                 timetable[tmp_pkt->seq] = data_pkt->senderTS;
-                            }
-                            else
-                            {
+                            else                                                 // retransmit request
                                 data_pkt->senderTS = timetable[tmp_pkt->seq];
-                            }
+                            
                             // printf(YELLOW "first 5 chars %d%d%d%d%d\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3],  data_pkt->data[4]);
                         }
                     }
@@ -135,22 +145,34 @@ int main(int argc, char *argv[])
                             isStart = true;
                         }
 
-                        data_pkts += 1;                 //success send one pkt
-                        data_bits += sizeof(*data_pkt); //success send data in bits
-
+                        data_pkts += 1;                 //[stat] success send one pkt
+                        data_bits += sizeof(*data_pkt); //[stat] success send data in bits 
+ 
                         cum_seq = tmp_pkt->seq;
                         while (timetable.begin()->first < cum_seq)
                             timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq)
                             window.erase(window.begin());
                         if (cum_seq > max_seq)
-                        {
                             max_seq = cum_seq; // record highest seq number
-                        }
+                        
                         //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     }
                 }
             }
+            
+            /****** Receiving from app ******/
+            if (FD_ISSET(app_soc, &tmp_mask))
+            {
+                if (recvfrom(app_soc, app_pkt, sizeof(stream_pkt), 0, (struct sockaddr *)&app_addr, &from_len) <= 0)
+                    continue;
+
+                // printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
+                window[cache_seq] = (char *)malloc(sizeof(app_pkt->data));
+                window[cache_seq] = app_pkt->data;
+                cache_seq++;
+            }
+
             /****** Print stats every 5 seconds ******/
             gettimeofday(&currentTime, NULL);
             if (currentTime.tv_sec - recordTime.tv_sec >= 5 && isStart)
@@ -162,24 +184,10 @@ int main(int argc, char *argv[])
                 recordTime.tv_usec = currentTime.tv_usec;
                 //last_record_seq = max_seq;
             }
-            /****** Receiving from app ******/
-            if (FD_ISSET(app_soc, &tmp_mask))
-            {
-                if (recvfrom(app_soc, app_pkt, sizeof(stream_pkt), 0, (struct sockaddr *)&app_addr, &from_len) <= 0)
-                {
-                    continue;
-                }
-
-                // printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
-                window[(int32_t)app_pkt->seq] = (char *)malloc(sizeof(app_pkt->data));
-                window[(int32_t)app_pkt->seq] = app_pkt->data;
-            }
         }
         else
-        {
-
             printf("%ld seconds, %d microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
-        }
+        
     }
 
     return 0;

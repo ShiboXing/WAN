@@ -18,7 +18,8 @@
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
             "preLaunchTask": "g++",
         },
         {
@@ -35,7 +36,8 @@
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
             "preLaunchTask": "g++",
         },
         {
@@ -51,7 +53,8 @@
             "cwd": "${fileDirname}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
             "preLaunchTask": "g++",
         },
     ]

@@ -3,6 +3,7 @@
 #define RESET "\033[0m"
 #define YELLOW "\033[33m"
 #define BOLDGREEN "\033[1m\033[32m"
+#define BOLDRED   "\033[1m\033[31m"
 #define TARGET_RATE 8 /* rate to send at, in Mbps */
 #define MAX_DATA_LEN 1300
 #define REPORT_SEC 5 /* print status every REPORT_SEC seconds */

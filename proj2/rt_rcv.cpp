@@ -20,10 +20,7 @@
 using namespace std;
 
 static char *svr_ip;
-static int svr_port;
-static int app_port;
-static int loss_perc;
-static int delta = 0xffff;
+static int svr_port, app_port, loss_perc, delta = 0xffff;
 static int32_t cum_seq = 0;
 static map<chrono::steady_clock::time_point, int32_t> timetable;
 static map<int32_t, char *> window;
@@ -33,25 +30,18 @@ static void Print_help();
 
 int main(int argc, char *argv[])
 {
-    double data_bits = 0;
-    int data_pkts = 0;
-    struct timeval startTime;
-    struct timeval recordTime;
-    struct timeval currentTime;
-    double one_delay;
-    double avg_delay = chrono::milliseconds::zero().count();
-    double min_delay = chrono::milliseconds::max().count();
-    double max_delay = chrono::milliseconds::min().count();
-
+    struct timeval startTime, recordTime, currentTime;
+    double one_delay, avg_delay = chrono::milliseconds::zero().count(),
+        min_delay = chrono::milliseconds::max().count(),
+        max_delay = chrono::milliseconds::min().count(),
+        data_bits = 0;
+    int soc, host_num, data_pkts = 0;
     long int duration;
     int32_t max_seq = 0;
     bool isStart = false;
     //static int32_t last_record_seq = 0;
-
-    int soc, host_num;
     struct sockaddr_in send_addr, app_addr;
-    struct hostent h_ent;
-    struct hostent *p_h_ent;
+    struct hostent h_ent, *p_h_ent;
     fd_set read_mask, tmp_mask;
     {
         Usage(argc, argv);
@@ -95,75 +85,65 @@ int main(int argc, char *argv[])
         int num = select(FD_SETSIZE, &tmp_mask, NULL, NULL, &timeout);
 
         if (num > 0)
-        { // ON RECEIVED,
+        { // ON RECEIVED
 
             if (FD_ISSET(soc, &tmp_mask))
             {
                 struct ack_pkt *tmp_pkt = (ack_pkt *)malloc(sizeof(ack_pkt));
                 struct net_pkt *data_pkt = (net_pkt *)malloc(sizeof(net_pkt));
-                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) == 0)
-                    continue;
+                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) == 0) continue;
                 one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // calculate oneway delay for each pkt
+                /* BLOCKED BY SVR */
+                if (data_pkt->seq < 0) {
+                    cout << BOLDRED << "blocked by server!" << RESET << "\n";
+                    exit(0);
+                }
                 /* phase I */
                 if (cum_seq == 0 && delta == 0xffff)
                 {
                     delta = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count();
                     cum_seq = 1;
-                    cout << BOLDGREEN << "delta acquired: " << delta << " miliseconds\n"
-                         << RESET;
+                    cout << BOLDGREEN << "delta acquired: " << delta << " miliseconds" << RESET << "\n";
                     continue;
                 }
                 /* phase II */
-                else if (data_pkt->seq == cum_seq)
-                { /* SEQUENTIAL */
-                    if (!isStart)
+                else if (data_pkt->seq == cum_seq) /* SEQUENTIAL */
+                { 
+                    if (!isStart) // [stat]
                     {
                         gettimeofday(&startTime, NULL);
                         recordTime.tv_sec = startTime.tv_sec;
                         recordTime.tv_usec = startTime.tv_usec;
                         isStart = true;
                     }
+
                     tmp_pkt->is_nack = false;
                     tmp_pkt->seq = cum_seq;
-
-                    sendto_dbg(soc, (char *)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
-                    //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     cum_seq = tmp_pkt->seq + 1;
                     int32_t i = cum_seq;
                     for (; i < cum_seq + W_SIZE; i++)
-                    { // dequeue all sequantial packets (painful)
-                        if (window.find(i) == window.end())
-                            break;
+                    { // acknowledging all sequential packets
+                        if (window.find(i) == window.end()) break;
                         tmp_pkt->seq = i;
-                        sendto_dbg(soc, (char *)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
-                        //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
                     }
                     cum_seq = i; // update cum_seq outside the for-loop in case the entire window is filled (painful)
+                    sendto_dbg(soc, (char *)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
                 }
-                else if (data_pkt->seq > cum_seq)
-                { /* GAPPED */
-                    //printf(YELLOW "[BUFFERED] seq %llu" RESET "\n", data_pkt->seq);
-                }
-                /* cache for smooth delivery */
+
+                /* cache for timed delivery */
                 timetable[data_pkt->senderTS] = data_pkt->seq;
                 window[data_pkt->seq] = (char *)malloc(sizeof(data_pkt->data));
                 memcpy(window[data_pkt->seq], data_pkt->data, sizeof(data_pkt->data));
 
-                data_pkts += 1;                 //success receive one pkt
-                data_bits += sizeof(*data_pkt); //success receive data in bits
+                data_pkts += 1;                 //[stat] success receive one pkt
+                data_bits += sizeof(*data_pkt); //[stat] success receive data in bits
                 if (data_pkt->seq > max_seq)
-                {
-                    max_seq = data_pkt->seq; //record highest packet seq received
-                }
-                avg_delay += (one_delay) / data_pkts; //avg one delay per pkt
+                    max_seq = data_pkt->seq; //[stat] record highest packet seq received
+                avg_delay += (one_delay) / data_pkts; //[stat] avg one delay per pkt
                 if (min_delay > one_delay)
-                {
-                    min_delay = one_delay; //min one delay
-                }
+                    min_delay = one_delay; //[stat] min one delay
                 else if (max_delay < one_delay)
-                {
-                    max_delay = one_delay; //max one delay
-                }
+                    max_delay = one_delay; //[stat] max one delay
             }
         }
         else
@@ -197,11 +177,9 @@ int main(int argc, char *argv[])
         {
             struct timeval now;
             gettimeofday(&now, NULL);
-
             int32_t tmp_seq = timetable.begin()->second;
             cum_seq = (tmp_seq > cum_seq) ? (int32_t)tmp_seq : cum_seq; // update cum_seq if needed
             memcpy(app_pkt.data, &window[tmp_seq], sizeof(app_pkt.data));
-
             app_pkt.seq = tmp_seq;
             app_pkt.ts_sec = now.tv_sec;
             app_pkt.ts_usec = now.tv_usec;
