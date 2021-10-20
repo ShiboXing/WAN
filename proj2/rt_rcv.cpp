@@ -179,7 +179,8 @@ int main(int argc, char *argv[])
             gettimeofday(&now, NULL);
             int32_t tmp_seq = timetable.begin()->second;
             cum_seq = (tmp_seq > cum_seq) ? (int32_t)tmp_seq : cum_seq; // update cum_seq if needed
-            memcpy(app_pkt.data, &window[tmp_seq], sizeof(app_pkt.data));
+            memcpy(app_pkt.data, window[tmp_seq], sizeof(app_pkt.data));
+
             app_pkt.seq = tmp_seq;
             app_pkt.ts_sec = now.tv_sec;
             app_pkt.ts_usec = now.tv_usec;
