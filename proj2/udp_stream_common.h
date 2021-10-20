@@ -6,6 +6,7 @@
 #define BOLDRED   "\033[1m\033[31m"
 #define TARGET_RATE 8 /* rate to send at, in Mbps */
 #define MAX_DATA_LEN 1300
+#define MAX_PKT_LEN 1400
 #define REPORT_SEC 5 /* print status every REPORT_SEC seconds */
 #define W_SIZE_PER_SECOND 1785
 #define TIMEOUT_MS 12000
@@ -31,14 +32,15 @@ struct stream_pkt
 struct net_pkt
 {
     Tp senderTS;
-    int32_t seq;
+    long long unsigned int seq;
     bool is_end;
-    char data[MAX_DATA_LEN];
+    int dt_size;
+    char data[1379];
 } __attribute__((packed));
 
 struct ack_pkt
 {
-    int32_t seq;
+    long long unsigned int seq;
     bool is_nack;
 } __attribute__((packed));
 

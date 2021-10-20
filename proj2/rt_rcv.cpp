@@ -21,9 +21,11 @@ using namespace std;
 
 static char *svr_ip;
 static int svr_port, app_port, loss_perc, delta = 0xffff;
-static int32_t cum_seq = 0;
-static map<chrono::steady_clock::time_point, int32_t> timetable;
-static map<int32_t, char *> window;
+static long long unsigned int cum_seq = 0;
+static map<chrono::steady_clock::time_point, long long unsigned int> timetable;
+static map<long long unsigned int, char *> window;
+static map<long long unsigned int, int> size_map;
+
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -37,9 +39,9 @@ int main(int argc, char *argv[])
         data_bits = 0;
     int soc, host_num, data_pkts = 0;
     long int duration;
-    int32_t max_seq = 0;
+    long long unsigned int max_seq = 0;
     bool isStart = false;
-    //static int32_t last_record_seq = 0;
+    //static long long unsigned int last_record_seq = 0;
     struct sockaddr_in send_addr, app_addr;
     struct hostent h_ent, *p_h_ent;
     fd_set read_mask, tmp_mask;
@@ -94,7 +96,7 @@ int main(int argc, char *argv[])
                 if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) == 0) continue;
                 one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // calculate oneway delay for each pkt
                 /* BLOCKED BY SVR */
-                if (data_pkt->seq < 0) {
+                if (data_pkt->seq == 0xffffffff) {
                     cout << BOLDRED << "blocked by server!" << RESET << "\n";
                     exit(0);
                 }
@@ -120,7 +122,7 @@ int main(int argc, char *argv[])
                     tmp_pkt->is_nack = false;
                     tmp_pkt->seq = cum_seq;
                     cum_seq = tmp_pkt->seq + 1;
-                    int32_t i = cum_seq;
+                    long long unsigned int i = cum_seq;
                     for (; i < cum_seq + W_SIZE; i++)
                     { // acknowledging all sequential packets
                         if (window.find(i) == window.end()) break;
@@ -132,8 +134,11 @@ int main(int argc, char *argv[])
 
                 /* cache for timed delivery */
                 timetable[data_pkt->senderTS] = data_pkt->seq;
-                window[data_pkt->seq] = (char *)malloc(sizeof(data_pkt->data));
-                memcpy(window[data_pkt->seq], data_pkt->data, sizeof(data_pkt->data));
+                window[data_pkt->seq] = (char *)malloc(sizeof(data_pkt->dt_size));
+                memcpy(window[data_pkt->seq], data_pkt->data, sizeof(data_pkt->dt_size));
+
+                struct stream_pkt app_pkt;
+                memcpy(&app_pkt, window[data_pkt->seq], data_pkt->dt_size);
 
                 data_pkts += 1;                 //[stat] success receive one pkt
                 data_bits += sizeof(*data_pkt); //[stat] success receive data in bits
@@ -148,7 +153,7 @@ int main(int argc, char *argv[])
         }
         else
         { // SEND NACKS
-            for (int32_t i = cum_seq; i < cum_seq + W_SIZE; i++)
+            for (long long unsigned int i = cum_seq; i < cum_seq + W_SIZE; i++)
             {
                 if (window.find(i) == window.end())
                 {
@@ -172,19 +177,13 @@ int main(int argc, char *argv[])
         }
 
         /* DELIVER PACKETS to app (painful) */
-        struct stream_pkt app_pkt;
         while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta + LATENCY)
         {
             struct timeval now;
             gettimeofday(&now, NULL);
-            int32_t tmp_seq = timetable.begin()->second;
-            cum_seq = (tmp_seq > cum_seq) ? (int32_t)tmp_seq : cum_seq; // update cum_seq if needed
-            memcpy(app_pkt.data, window[tmp_seq], sizeof(app_pkt.data));
-
-            app_pkt.seq = tmp_seq;
-            app_pkt.ts_sec = now.tv_sec;
-            app_pkt.ts_usec = now.tv_usec;
-            sendto(soc, (char *)&app_pkt, sizeof(app_pkt), 0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
+            long long unsigned int tmp_seq = timetable.begin()->second;
+            cum_seq = (tmp_seq > cum_seq) ? (long long unsigned int)tmp_seq : cum_seq; // update cum_seq if needed
+            sendto(soc, window[tmp_seq], sizeof(*window[tmp_seq]), 0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
 
             timetable.erase(timetable.begin());
             window.erase(tmp_seq);

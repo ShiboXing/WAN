@@ -18,9 +18,10 @@
 static int svr_port;
 static int app_port;
 static int loss_perc;
-static int32_t cum_seq = 0, cache_seq = 1;
-static map<int32_t, chrono::steady_clock::time_point> timetable;
-static map<int32_t, char *> window;
+static long long unsigned int cum_seq = 0, cache_seq = 1;
+static map<long long unsigned int, chrono::steady_clock::time_point> timetable;
+static map<long long unsigned int, char *> window;
+static map<long long unsigned int, int> size_map;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -40,9 +41,9 @@ int main(int argc, char *argv[])
     struct timeval recordTime;
     struct timeval currentTime;
     long int duration;
-    int32_t max_seq = 0;
+    long long unsigned int max_seq = 0;
     bool isStart = false;
-    //static int32_t last_record_seq = 0;
+    //static long long unsigned int last_record_seq = 0;
 
     struct timeval timeout;
     {
@@ -105,15 +106,13 @@ int main(int argc, char *argv[])
                     if (curr_client_addr.sin_addr.s_addr != 0 && (client_addr.sin_addr.s_addr != curr_client_addr.sin_addr.s_addr
                         || curr_client_addr.sin_port != client_addr.sin_port))
                     {
-
-                        data_pkt->seq = -1;
+                        data_pkt->seq = 0xffffffff;
                         sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                     }
                     else 
                     {
                         sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                         curr_client_addr = client_addr;
-                    
                     }
                 }
                 else                    /* Phase II */
@@ -124,14 +123,17 @@ int main(int argc, char *argv[])
                         if (window.find(tmp_pkt->seq) != window.end())
                         {
                             data_pkt->seq = tmp_pkt->seq;
-                            memcpy(data_pkt->data, window[tmp_pkt->seq], sizeof(data_pkt->data));
+                            data_pkt->dt_size = size_map[data_pkt->seq];
+                            memcpy(data_pkt->data, window[tmp_pkt->seq], data_pkt->dt_size);
                             sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                             re_pkts += 1; //[stat] retransmit pkts
                             if (timetable.find(tmp_pkt->seq) == timetable.end()) // new request
                                 timetable[tmp_pkt->seq] = data_pkt->senderTS;
                             else                                                 // retransmit request
                                 data_pkt->senderTS = timetable[tmp_pkt->seq];
-                            
+                            struct stream_pkt app_pkt;
+                            memcpy(&app_pkt, data_pkt->data, data_pkt->dt_size);
+                            int aefef= 0;
                             // printf(YELLOW "first 5 chars %d%d%d%d%d\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3],  data_pkt->data[4]);
                         }
                     }
@@ -153,6 +155,8 @@ int main(int argc, char *argv[])
                             timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq)
                             window.erase(window.begin());
+                        while (size_map.begin()->first < cum_seq)
+                            size_map.erase(size_map.begin());
                         if (cum_seq > max_seq)
                             max_seq = cum_seq; // record highest seq number
                         
@@ -164,12 +168,13 @@ int main(int argc, char *argv[])
             /****** Receiving from app ******/
             if (FD_ISSET(app_soc, &tmp_mask))
             {
-                if (recvfrom(app_soc, app_pkt, sizeof(stream_pkt), 0, (struct sockaddr *)&app_addr, &from_len) <= 0)
-                    continue;
-
+                char tmp[MAX_PKT_LEN];
+                int bytes = recvfrom(app_soc, tmp, sizeof(tmp), 0, (struct sockaddr *)&app_addr, &from_len);
+                if (bytes <= 0) continue;
+                
                 // printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
-                window[cache_seq] = (char *)malloc(sizeof(app_pkt->data));
-                window[cache_seq] = app_pkt->data;
+                window[cache_seq] = tmp;
+                size_map[cache_seq] = bytes;
                 cache_seq++;
             }
 
