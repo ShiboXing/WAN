@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits>
+#include <vector>
 #include <map>
 
 #include <sys/types.h>
@@ -21,9 +22,9 @@ using namespace std;
 
 static char *svr_ip;
 static int svr_port, app_port, loss_perc, delta = 0xffff;
-static long long unsigned int cum_seq = 0;
+static long long unsigned int cum_seq = 0, app_cum_seq = 0;
 static map<chrono::steady_clock::time_point, long long unsigned int> timetable;
-static map<long long unsigned int, char *> window;
+static map<long long unsigned int, struct net_pkt*> window;
 static map<long long unsigned int, int> size_map;
 
 
@@ -93,7 +94,7 @@ int main(int argc, char *argv[])
             {
                 struct ack_pkt *tmp_pkt = (ack_pkt *)malloc(sizeof(ack_pkt));
                 struct net_pkt *data_pkt = (net_pkt *)malloc(sizeof(net_pkt));
-                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) == 0) continue;
+                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) <= 0) continue;
                 one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // calculate oneway delay for each pkt
                 /* BLOCKED BY SVR */
                 if (data_pkt->seq == 0xffffffff) {
@@ -134,11 +135,7 @@ int main(int argc, char *argv[])
 
                 /* cache for timed delivery */
                 timetable[data_pkt->senderTS] = data_pkt->seq;
-                window[data_pkt->seq] = (char *)malloc(sizeof(data_pkt->dt_size));
-                memcpy(window[data_pkt->seq], data_pkt->data, sizeof(data_pkt->dt_size));
-
-                struct stream_pkt app_pkt;
-                memcpy(&app_pkt, window[data_pkt->seq], data_pkt->dt_size);
+                window[data_pkt->seq] = data_pkt;
 
                 data_pkts += 1;                 //[stat] success receive one pkt
                 data_bits += sizeof(*data_pkt); //[stat] success receive data in bits
@@ -176,18 +173,21 @@ int main(int argc, char *argv[])
             //last_record_seq = max_seq;
         }
 
-        /* DELIVER PACKETS to app (painful) */
+        /* DELIVER timed-out pkts to app */
+        long long unsigned int top_deliver_seq = app_cum_seq;
         while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta + LATENCY)
-        {
-            struct timeval now;
-            gettimeofday(&now, NULL);
-            long long unsigned int tmp_seq = timetable.begin()->second;
-            cum_seq = (tmp_seq > cum_seq) ? (long long unsigned int)tmp_seq : cum_seq; // update cum_seq if needed
-            sendto(soc, window[tmp_seq], sizeof(*window[tmp_seq]), 0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
-
+        {   /* get the highest expired seq */ 
+            top_deliver_seq = timetable.begin()->second > top_deliver_seq ? timetable.begin()->second : top_deliver_seq;
             timetable.erase(timetable.begin());
-            window.erase(tmp_seq);
         }
+        while (window.size() != 0 && window.begin()->first <= top_deliver_seq) 
+        {   /* deliver up to the highest expired seq */
+            sendto(soc, window.begin()->second->data, window.begin()->second->dt_size,
+                0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
+            window.erase(window.begin());
+        }
+        // in case gapped packets are too tardy
+        cum_seq = (cum_seq > 0 && top_deliver_seq >= cum_seq) ? top_deliver_seq + 1 : cum_seq;        
     }
 
     return 0;

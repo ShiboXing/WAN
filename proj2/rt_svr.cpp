@@ -20,8 +20,7 @@ static int app_port;
 static int loss_perc;
 static long long unsigned int cum_seq = 0, cache_seq = 1;
 static map<long long unsigned int, chrono::steady_clock::time_point> timetable;
-static map<long long unsigned int, char *> window;
-static map<long long unsigned int, int> size_map;
+static map<long long unsigned int, net_pkt*> window;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -93,7 +92,6 @@ int main(int argc, char *argv[])
         {
             struct ack_pkt *tmp_pkt = (ack_pkt *)malloc(sizeof(ack_pkt));
             struct net_pkt *data_pkt = (net_pkt *)malloc(sizeof(net_pkt));
-            struct stream_pkt *app_pkt = (stream_pkt *)malloc(sizeof(stream_pkt));
             /****** Receiving from client ******/
             if (FD_ISSET(client_soc, &tmp_mask))
             {
@@ -101,46 +99,39 @@ int main(int argc, char *argv[])
                 if (recvfrom(client_soc, tmp_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&client_addr, &from_len) <= 0)
                     continue;
                 
-                if (tmp_pkt->seq == 0)  /* Phase I */
+                if (tmp_pkt->seq == 0)  /* Phase I, delta calibration */
                 { 
                     if (curr_client_addr.sin_addr.s_addr != 0 && (client_addr.sin_addr.s_addr != curr_client_addr.sin_addr.s_addr
-                        || curr_client_addr.sin_port != client_addr.sin_port))
+                        || curr_client_addr.sin_port != client_addr.sin_port)) // extra sender, block it
                     {
                         data_pkt->seq = 0xffffffff;
                         sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                     }
-                    else 
+                    else                                                       // requesting sender, send back the timestamp
                     {
                         sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                         curr_client_addr = client_addr;
                     }
                 }
-                else                    /* Phase II */
+                else                    /* Phase II, RT transmission*/
                 { 
                     if (tmp_pkt->is_nack == true)
                     { // NACK
 
                         if (window.find(tmp_pkt->seq) != window.end())
                         {
-                            data_pkt->seq = tmp_pkt->seq;
-                            data_pkt->dt_size = size_map[data_pkt->seq];
-                            memcpy(data_pkt->data, window[tmp_pkt->seq], data_pkt->dt_size);
-                            sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-                            re_pkts += 1; //[stat] retransmit pkts
+                            re_pkts += 1; // [stat] retransmit pkts
                             if (timetable.find(tmp_pkt->seq) == timetable.end()) // new request
                                 timetable[tmp_pkt->seq] = data_pkt->senderTS;
                             else                                                 // retransmit request
                                 data_pkt->senderTS = timetable[tmp_pkt->seq];
-                            struct stream_pkt app_pkt;
-                            memcpy(&app_pkt, data_pkt->data, data_pkt->dt_size);
-                            int aefef= 0;
-                            // printf(YELLOW "first 5 chars %d%d%d%d%d\n" RESET, data_pkt->data[0], data_pkt->data[1], data_pkt->data[2], data_pkt->data[3],  data_pkt->data[4]);
+                            sendto_dbg(client_soc, (char *)window[tmp_pkt->seq], sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                         }
                     }
                     else if (cum_seq < tmp_pkt->seq)
                     { // ACK
                         if (!isStart)
-                        { //Record time of start
+                        { // [stat] Record time of start
                             gettimeofday(&startTime, NULL);
                             recordTime.tv_sec = startTime.tv_sec;
                             recordTime.tv_usec = startTime.tv_usec;
@@ -149,18 +140,12 @@ int main(int argc, char *argv[])
 
                         data_pkts += 1;                 //[stat] success send one pkt
                         data_bits += sizeof(*data_pkt); //[stat] success send data in bits 
- 
-                        cum_seq = tmp_pkt->seq;
+                        cum_seq = tmp_pkt->seq;                     // remove useless cache
                         while (timetable.begin()->first < cum_seq)
                             timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq)
                             window.erase(window.begin());
-                        while (size_map.begin()->first < cum_seq)
-                            size_map.erase(size_map.begin());
-                        if (cum_seq > max_seq)
-                            max_seq = cum_seq; // record highest seq number
-                        
-                        //printf(YELLOW "[ACK] seq %llu" RESET "\n", tmp_pkt->seq);
+                        if (cum_seq > max_seq) max_seq = cum_seq;  // [stat] record highest seq number
                     }
                 }
             }
@@ -168,13 +153,13 @@ int main(int argc, char *argv[])
             /****** Receiving from app ******/
             if (FD_ISSET(app_soc, &tmp_mask))
             {
-                char tmp[MAX_PKT_LEN];
+                char tmp[MAX_PKT_LEN]; 
                 int bytes = recvfrom(app_soc, tmp, sizeof(tmp), 0, (struct sockaddr *)&app_addr, &from_len);
                 if (bytes <= 0) continue;
-                
-                // printf(YELLOW "from app first 5 chars %d%d%d%d%d\n" RESET, app_pkt->data[0], app_pkt->data[1], app_pkt->data[2], app_pkt->data[3],  app_pkt->data[4]);
-                window[cache_seq] = tmp;
-                size_map[cache_seq] = bytes;
+                data_pkt->dt_size = bytes;
+                data_pkt->seq = cache_seq;
+                memcpy(data_pkt->data, tmp, data_pkt->dt_size);
+                window[data_pkt->seq] = data_pkt;
                 cache_seq++;
             }
 
@@ -191,8 +176,7 @@ int main(int argc, char *argv[])
             }
         }
         else
-            printf("%ld seconds, %d microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
-        
+            printf("%ld seconds, %ld microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
     }
 
     return 0;

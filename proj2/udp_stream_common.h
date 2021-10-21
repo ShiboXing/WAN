@@ -33,15 +33,14 @@ struct net_pkt
 {
     Tp senderTS;
     long long unsigned int seq;
-    bool is_end;
     int dt_size;
-    char data[1379];
-} __attribute__((packed));
+    char data[1380];
+};
 
 struct ack_pkt
 {
     long long unsigned int seq;
     bool is_nack;
-} __attribute__((packed));
+};
 
 #endif
