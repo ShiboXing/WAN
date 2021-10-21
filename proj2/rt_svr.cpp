@@ -34,8 +34,7 @@ int main(int argc, char *argv[])
     socklen_t from_len = sizeof(client_addr);
 
     double data_bits = 0;
-    int data_pkts = 0;
-    int re_pkts = 0;
+    unsigned long long int total_pkts = 0;
     struct timeval startTime;
     struct timeval recordTime;
     struct timeval currentTime;
@@ -115,37 +114,35 @@ int main(int argc, char *argv[])
                 else /* Phase II, RT transmission*/
                 {
                     if (tmp_pkt->is_nack == true)
-                    { // NACK
+                    { /* NACK */
 
-                        if (window.find(tmp_pkt->seq) != window.end())
-                        {
-                            re_pkts += 1;                                        // [stat] retransmit pkts
-                            if (timetable.find(tmp_pkt->seq) == timetable.end()) // new request
-                                timetable[tmp_pkt->seq] = data_pkt->senderTS;
-                            else // retransmit request
-                                data_pkt->senderTS = timetable[tmp_pkt->seq];
-                            sendto_dbg(client_soc, (char *)window[tmp_pkt->seq], sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-                        }
-                    }
-                    else if (cum_seq < tmp_pkt->seq)
-                    { // ACK
-                        if (!isStart)
-                        { // [stat] Record time of start
+                        if (!isStart) // [stat] record time of start
+                        {   
                             gettimeofday(&startTime, NULL);
                             recordTime.tv_sec = startTime.tv_sec;
                             recordTime.tv_usec = startTime.tv_usec;
                             isStart = true;
                         }
 
-                        data_pkts += 1;                 //[stat] success send one pkt
+                        if (window.find(tmp_pkt->seq) != window.end())
+                        {
+                            if (timetable.find(tmp_pkt->seq) == timetable.end()) // new request
+                                timetable[tmp_pkt->seq] = data_pkt->senderTS;
+                            else // retransmit request
+                                data_pkt->senderTS = timetable[tmp_pkt->seq];
+                            sendto_dbg(client_soc, (char *)window[tmp_pkt->seq], sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
+                            max_seq = tmp_pkt->seq > max_seq ? tmp_pkt->seq : max_seq;  // [stat] record highest sent pkt seq
+                            total_pkts += 1;                                            // [stat] count sent pkts
+                        }
+                    }
+                    else if (cum_seq < tmp_pkt->seq)
+                    { /* ACK */
                         data_bits += sizeof(*data_pkt); //[stat] success send data in bits
                         cum_seq = tmp_pkt->seq;         // remove useless cache
                         while (timetable.begin()->first < cum_seq)
                             timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq)
                             window.erase(window.begin());
-                        if (cum_seq > max_seq)
-                            max_seq = cum_seq; // [stat] record highest seq number
                     }
                 }
             }
@@ -170,10 +167,9 @@ int main(int argc, char *argv[])
             {
                 duration = currentTime.tv_sec - startTime.tv_sec;
                 duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
-                print_stat(duration, max_seq, data_bits, data_pkts, false, 0, 0, 0, re_pkts - data_pkts);
+                print_stat(duration, max_seq, data_bits, cum_seq, false, 0, 0, 0, total_pkts - cum_seq);
                 recordTime.tv_sec = currentTime.tv_sec;
                 recordTime.tv_usec = currentTime.tv_usec;
-                //last_record_seq = max_seq;
             }
         }
         else
