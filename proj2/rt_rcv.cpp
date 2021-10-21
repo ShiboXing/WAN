@@ -36,10 +36,9 @@ int main(int argc, char *argv[])
     double one_delay, avg_delay = chrono::milliseconds::zero().count(),
                       min_delay = chrono::milliseconds::max().count(),
                       max_delay = chrono::milliseconds::min().count(),
-                      data_bits = 0;
+                      duration;
     int soc, host_num, data_pkts = 0;
-    long int duration;
-    long long unsigned int max_seq = 0;
+    long long unsigned int max_seq = 0, data_bits = 0;
     bool isStart = false;
     //static long long unsigned int last_record_seq = 0;
     struct sockaddr_in send_addr, app_addr;
@@ -172,7 +171,6 @@ int main(int argc, char *argv[])
             print_stat(duration, max_seq, data_bits, data_pkts, true, avg_delay, min_delay, max_delay, 0);
             recordTime.tv_sec = currentTime.tv_sec;
             recordTime.tv_usec = currentTime.tv_usec;
-            //last_record_seq = max_seq;
         }
 
         /* DELIVER timed-out pkts to app */

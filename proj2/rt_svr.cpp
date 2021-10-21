@@ -29,19 +29,14 @@ int main(int argc, char *argv[])
 {
     int client_soc, app_soc;
     struct sockaddr_in client_addr, app_addr, curr_client_addr; /* addresses of receiver */
-    curr_client_addr.sin_addr.s_addr = 0;
+    struct timeval startTime, recordTime, currentTime;
     fd_set read_mask, tmp_mask;
     socklen_t from_len = sizeof(client_addr);
-
-    double data_bits = 0;
-    unsigned long long int total_pkts = 0;
-    struct timeval startTime;
-    struct timeval recordTime;
-    struct timeval currentTime;
-    long int duration;
-    long long unsigned int max_seq = 0;
+    double duration;
+    long long unsigned int max_seq = 0, data_bits = 0, total_pkts = 0;
     bool isStart = false;
-    //static long long unsigned int last_record_seq = 0;
+
+    curr_client_addr.sin_addr.s_addr = 0;
 
     struct timeval timeout;
     {
@@ -137,7 +132,6 @@ int main(int argc, char *argv[])
                     }
                     else if (cum_seq < tmp_pkt->seq)
                     { /* ACK */
-                        data_bits += sizeof(*data_pkt); //[stat] success send data in bits
                         cum_seq = tmp_pkt->seq;         // remove useless cache
                         while (timetable.begin()->first < cum_seq)
                             timetable.erase(timetable.begin());
@@ -167,7 +161,7 @@ int main(int argc, char *argv[])
             {
                 duration = currentTime.tv_sec - startTime.tv_sec;
                 duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
-                print_stat(duration, max_seq, data_bits, cum_seq, false, 0, 0, 0, total_pkts - cum_seq);
+                print_stat(duration, max_seq, cum_seq * sizeof(net_pkt), cum_seq, false, 0, 0, 0, total_pkts - cum_seq);
                 recordTime.tv_sec = currentTime.tv_sec;
                 recordTime.tv_usec = currentTime.tv_usec;
             }
