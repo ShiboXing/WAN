@@ -3,15 +3,15 @@
 #define RESET "\033[0m"
 #define YELLOW "\033[33m"
 #define BOLDGREEN "\033[1m\033[32m"
-#define BOLDRED   "\033[1m\033[31m"
+#define BOLDRED "\033[1m\033[31m"
 #define TARGET_RATE 8 /* rate to send at, in Mbps */
 #define MAX_DATA_LEN 1300
 #define MAX_PKT_LEN 1400
 #define REPORT_SEC 5 /* print status every REPORT_SEC seconds */
 #define W_SIZE_PER_SECOND 1785
-#define TIMEOUT_MS 12000
+#define TIMEOUT_MS 80000
 #define TIMEOUT_S 0
-#define W_SIZE 20
+#define W_SIZE 60
 #define LATENCY 1000 // miliseconds
 
 #include <chrono>
