@@ -8,7 +8,7 @@ void print_stat(long int duration, long long unsigned int max_seq, double data_b
     printf("%f megabytes,%i packets\n", data_bits / (8 * 1000000), data_pkts);
     printf("The average transfer rate (for clean data) for the whole transfer so far\n");
     printf("%f megabits/sec, %f packets/sec\n", rate, rate_pkt);
-    printf("The sequence number of the highest packet sent so far: %llu\n", max_seq);
+    printf("The sequence number of the highest packet sent/receive so far: %llu\n", max_seq);
     if (isRcv)
     {
         printf("The total number of packets lost/dropped so far: %llu\n", max_seq - data_pkts);

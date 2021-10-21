@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS = -std=c++11 -c -Wall -pedantic -g 
-lr=0
-svr_ip=192.171.20.103#192.171.20.103
+lr=5
+svr_ip=localhost#192.171.20.103
 svr_port=5555
 rcv_app_port=4444
 svr_app_port=3333
@@ -21,7 +21,7 @@ run_rcv:
 run_svr:
 	./rt_svr $(lr) $(svr_app_port) $(svr_port)
 run_stream:
-	./udp_stream localhost:${svr_app_port} 8000
+	./udp_stream localhost:${svr_app_port} 25000
 run_stream_rcv:
 	./udp_stream_rcv ${rcv_app_port}
 

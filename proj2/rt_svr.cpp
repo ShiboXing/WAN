@@ -20,7 +20,7 @@ static int app_port;
 static int loss_perc;
 static long long unsigned int cum_seq = 0, cache_seq = 1;
 static map<long long unsigned int, chrono::steady_clock::time_point> timetable;
-static map<long long unsigned int, net_pkt*> window;
+static map<long long unsigned int, net_pkt *> window;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -98,32 +98,31 @@ int main(int argc, char *argv[])
                 data_pkt->senderTS = Time::now();
                 if (recvfrom(client_soc, tmp_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&client_addr, &from_len) <= 0)
                     continue;
-                
-                if (tmp_pkt->seq == 0)  /* Phase I, delta calibration */
-                { 
-                    if (curr_client_addr.sin_addr.s_addr != 0 && (client_addr.sin_addr.s_addr != curr_client_addr.sin_addr.s_addr
-                        || curr_client_addr.sin_port != client_addr.sin_port)) // extra sender, block it
+
+                if (tmp_pkt->seq == 0) /* Phase I, delta calibration */
+                {
+                    if (curr_client_addr.sin_addr.s_addr != 0 && (client_addr.sin_addr.s_addr != curr_client_addr.sin_addr.s_addr || curr_client_addr.sin_port != client_addr.sin_port)) // extra sender, block it
                     {
                         data_pkt->seq = 0xffffffff;
                         sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                     }
-                    else                                                       // requesting sender, send back the timestamp
+                    else // requesting sender, send back the timestamp
                     {
                         sendto_dbg(client_soc, (char *)data_pkt, sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                         curr_client_addr = client_addr;
                     }
                 }
-                else                    /* Phase II, RT transmission*/
-                { 
+                else /* Phase II, RT transmission*/
+                {
                     if (tmp_pkt->is_nack == true)
                     { // NACK
 
                         if (window.find(tmp_pkt->seq) != window.end())
                         {
-                            re_pkts += 1; // [stat] retransmit pkts
+                            re_pkts += 1;                                        // [stat] retransmit pkts
                             if (timetable.find(tmp_pkt->seq) == timetable.end()) // new request
                                 timetable[tmp_pkt->seq] = data_pkt->senderTS;
-                            else                                                 // retransmit request
+                            else // retransmit request
                                 data_pkt->senderTS = timetable[tmp_pkt->seq];
                             sendto_dbg(client_soc, (char *)window[tmp_pkt->seq], sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                         }
@@ -139,23 +138,25 @@ int main(int argc, char *argv[])
                         }
 
                         data_pkts += 1;                 //[stat] success send one pkt
-                        data_bits += sizeof(*data_pkt); //[stat] success send data in bits 
-                        cum_seq = tmp_pkt->seq;                     // remove useless cache
+                        data_bits += sizeof(*data_pkt); //[stat] success send data in bits
+                        cum_seq = tmp_pkt->seq;         // remove useless cache
                         while (timetable.begin()->first < cum_seq)
                             timetable.erase(timetable.begin());
                         while (window.begin()->first < cum_seq)
                             window.erase(window.begin());
-                        if (cum_seq > max_seq) max_seq = cum_seq;  // [stat] record highest seq number
+                        if (cum_seq > max_seq)
+                            max_seq = cum_seq; // [stat] record highest seq number
                     }
                 }
             }
-            
+
             /****** Receiving from app ******/
             if (FD_ISSET(app_soc, &tmp_mask))
             {
-                char tmp[MAX_PKT_LEN]; 
+                char tmp[MAX_PKT_LEN];
                 int bytes = recvfrom(app_soc, tmp, sizeof(tmp), 0, (struct sockaddr *)&app_addr, &from_len);
-                if (bytes <= 0) continue;
+                if (bytes <= 0)
+                    continue;
                 data_pkt->dt_size = bytes;
                 data_pkt->seq = cache_seq;
                 memcpy(data_pkt->data, tmp, data_pkt->dt_size);
@@ -169,14 +170,14 @@ int main(int argc, char *argv[])
             {
                 duration = currentTime.tv_sec - startTime.tv_sec;
                 duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
-                print_stat(duration, max_seq, data_bits, data_pkts, false, 0, 0, 0, re_pkts);
+                print_stat(duration, max_seq, data_bits, data_pkts, false, 0, 0, 0, re_pkts - data_pkts);
                 recordTime.tv_sec = currentTime.tv_sec;
                 recordTime.tv_usec = currentTime.tv_usec;
                 //last_record_seq = max_seq;
             }
         }
         else
-            printf("%ld seconds, %ld microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
+            printf("%ld seconds, %d microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
     }
 
     return 0;

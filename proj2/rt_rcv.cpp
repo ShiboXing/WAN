@@ -24,9 +24,8 @@ static char *svr_ip;
 static int svr_port, app_port, loss_perc, delta = 0xffff;
 static long long unsigned int cum_seq = 0, app_cum_seq = 0;
 static map<chrono::steady_clock::time_point, long long unsigned int> timetable;
-static map<long long unsigned int, struct net_pkt*> window;
+static map<long long unsigned int, struct net_pkt *> window;
 static map<long long unsigned int, int> size_map;
-
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
@@ -35,9 +34,9 @@ int main(int argc, char *argv[])
 {
     struct timeval startTime, recordTime, currentTime;
     double one_delay, avg_delay = chrono::milliseconds::zero().count(),
-        min_delay = chrono::milliseconds::max().count(),
-        max_delay = chrono::milliseconds::min().count(),
-        data_bits = 0;
+                      min_delay = chrono::milliseconds::max().count(),
+                      max_delay = chrono::milliseconds::min().count(),
+                      data_bits = 0;
     int soc, host_num, data_pkts = 0;
     long int duration;
     long long unsigned int max_seq = 0;
@@ -94,10 +93,12 @@ int main(int argc, char *argv[])
             {
                 struct ack_pkt *tmp_pkt = (ack_pkt *)malloc(sizeof(ack_pkt));
                 struct net_pkt *data_pkt = (net_pkt *)malloc(sizeof(net_pkt));
-                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) <= 0) continue;
+                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) <= 0)
+                    continue;
                 one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // calculate oneway delay for each pkt
                 /* BLOCKED BY SVR */
-                if (data_pkt->seq == 0xffffffff) {
+                if (data_pkt->seq == 0xffffffff)
+                {
                     cout << BOLDRED << "blocked by server!" << RESET << "\n";
                     exit(0);
                 }
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
                 }
                 /* phase II */
                 else if (data_pkt->seq == cum_seq) /* SEQUENTIAL */
-                { 
+                {
                     if (!isStart) // [stat]
                     {
                         gettimeofday(&startTime, NULL);
@@ -126,7 +127,8 @@ int main(int argc, char *argv[])
                     long long unsigned int i = cum_seq;
                     for (; i < cum_seq + W_SIZE; i++)
                     { // acknowledging all sequential packets
-                        if (window.find(i) == window.end()) break;
+                        if (window.find(i) == window.end())
+                            break;
                         tmp_pkt->seq = i;
                     }
                     cum_seq = i; // update cum_seq outside the for-loop in case the entire window is filled (painful)
@@ -140,7 +142,7 @@ int main(int argc, char *argv[])
                 data_pkts += 1;                 //[stat] success receive one pkt
                 data_bits += sizeof(*data_pkt); //[stat] success receive data in bits
                 if (data_pkt->seq > max_seq)
-                    max_seq = data_pkt->seq; //[stat] record highest packet seq received
+                    max_seq = data_pkt->seq;          //[stat] record highest packet seq received
                 avg_delay += (one_delay) / data_pkts; //[stat] avg one delay per pkt
                 if (min_delay > one_delay)
                     min_delay = one_delay; //[stat] min one delay
@@ -176,18 +178,18 @@ int main(int argc, char *argv[])
         /* DELIVER timed-out pkts to app */
         long long unsigned int top_deliver_seq = app_cum_seq;
         while (timetable.size() != 0 && chrono::duration_cast<MS>(Time::now() - timetable.begin()->first).count() > delta + LATENCY)
-        {   /* get the highest expired seq */ 
+        { /* get the highest expired seq */
             top_deliver_seq = timetable.begin()->second > top_deliver_seq ? timetable.begin()->second : top_deliver_seq;
             timetable.erase(timetable.begin());
         }
-        while (window.size() != 0 && window.begin()->first <= top_deliver_seq) 
-        {   /* deliver up to the highest expired seq */
+        while (window.size() != 0 && window.begin()->first <= top_deliver_seq)
+        { /* deliver up to the highest expired seq */
             sendto(soc, window.begin()->second->data, window.begin()->second->dt_size,
-                0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
+                   0, (struct sockaddr *)&app_addr, sizeof(app_addr)); // deliver
             window.erase(window.begin());
         }
         // in case gapped packets are too tardy
-        cum_seq = (cum_seq > 0 && top_deliver_seq >= cum_seq) ? top_deliver_seq + 1 : cum_seq;        
+        cum_seq = (cum_seq > 0 && top_deliver_seq >= cum_seq) ? top_deliver_seq + 1 : cum_seq;
     }
 
     return 0;
