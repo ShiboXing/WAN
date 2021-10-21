@@ -14,7 +14,7 @@ void print_stat(bool isRcv, double duration, long long unsigned int max_seq,
 
     cout << "\n";
     cout << "The total amount of 'clean' data successfully transferred so far: " << 
-        BOLDGREEN << mb << " megabytes, " << cum_seq - 1 << " packets" << RESET << "\n";
+        BOLDGREEN << mb << " megabytes, " << cum_seq << " packets" << RESET << "\n";
     cout << "The average transfer rate (for clean data) for the whole transfer so far " << 
         BOLDGREEN << bw << " megabits/sec, " << pbw << " packets/sec" << RESET "\n";
     cout << "The sequence number of the highest packet sent/receive so far: " << BOLDGREEN << max_seq << RESET << "\n";
