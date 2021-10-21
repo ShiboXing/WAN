@@ -1,24 +1,32 @@
 #include "stat_display.h"
+#include "udp_stream_common.h"
+#include "iostream"
 
-void print_stat(double duration, long long unsigned int max_seq, long long unsigned int data_bits, 
-    long long unsigned int data_pkts, bool isRcv, double avg_delay, double min_delay, double max_delay, 
-        long long unsigned int re_pkts)
+using namespace std;
+
+void print_stat(bool isRcv, double duration, long long unsigned int max_seq,
+        long long unsigned int cum_seq, long long unsigned int re_pkts, long long unsigned int lost_pkts,
+            double avg_delay, double min_delay, double max_delay)
 {
-    double rate = data_bits / (1000000 * duration);
-    double rate_pkt = data_pkts / (duration);
-    printf("The total amount of 'clean' data successfully transferred so far\n");
-    printf("%f megabytes,%i packets\n", data_bits / (8 * 1000000), data_pkts);
-    printf("The average transfer rate (for clean data) for the whole transfer so far\n");
-    printf("%f megabits/sec, %f packets/sec\n", rate, rate_pkt);
-    printf("The sequence number of the highest packet sent/receive so far: %llu\n", max_seq);
+
+    auto mb = (double)cum_seq * sizeof(net_pkt) / 1000000, bw = (double)cum_seq * sizeof(net_pkt) / 1000000 * 8 / duration,
+        pbw = (double)cum_seq / duration;
+
+    cout << "\n";
+    cout << "The total amount of 'clean' data successfully transferred so far: " << 
+        BOLDGREEN << mb << " megabytes, " << cum_seq - 1 << " packets" << RESET << "\n";
+    cout << "The average transfer rate (for clean data) for the whole transfer so far " << 
+        BOLDGREEN << bw << " megabits/sec, " << pbw << " packets/sec" << RESET "\n";
+    cout << "The sequence number of the highest packet sent/receive so far: " << BOLDGREEN << max_seq << RESET << "\n";
+
     if (isRcv)
     {
-        printf("The total number of packets lost/dropped so far: %llu\n", max_seq - data_pkts);
-        printf("The average delay is %f ms, The minimum delay is %f ms, The maximum delay is %f ms\n", avg_delay, min_delay, max_delay);
+        cout << "The total number of packets lost/dropped so far: " << 
+            BOLDGREEN << lost_pkts << RESET << "\n";
+        cout << "The average delay is " << BOLDGREEN << avg_delay << " ms, " << RESET <<  
+            "the minimum delay is " << BOLDGREEN << min_delay << "ms, " << RESET << 
+                "the maximum delay is " << BOLDGREEN << max_delay << "ms" << RESET "\n";
     }
     else
-    {
-        printf("The total number of retransmissions sent so far: %i\n", re_pkts);
-    }
-    printf("\n");
+        cout << "The total number of retransmissions sent so far: " << BOLDGREEN << re_pkts << RESET << "\n";
 }

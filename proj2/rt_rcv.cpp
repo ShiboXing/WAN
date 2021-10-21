@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/time.h>
+#include <stdlib.h>
 #include "udp_stream_common.h"
 #include "sendto_dbg.h"
 #include "stat_display.h"
@@ -22,7 +23,6 @@ using namespace std;
 
 static char *svr_ip;
 static int svr_port, app_port, loss_perc, delta = 0xffff;
-static long long unsigned int cum_seq = 0, app_cum_seq = 0;
 static map<chrono::steady_clock::time_point, long long unsigned int> timetable;
 static map<long long unsigned int, struct net_pkt *> window;
 static map<long long unsigned int, int> size_map;
@@ -37,8 +37,8 @@ int main(int argc, char *argv[])
                       min_delay = chrono::milliseconds::max().count(),
                       max_delay = chrono::milliseconds::min().count(),
                       duration;
-    int soc, host_num, data_pkts = 0;
-    long long unsigned int max_seq = 0, data_bits = 0;
+    int soc, host_num;
+    long long unsigned int max_seq = 0, cum_seq = 0, app_cum_seq = 0, total_pkts = 0, lost_pkts = 0;
     bool isStart = false;
     //static long long unsigned int last_record_seq = 0;
     struct sockaddr_in send_addr, app_addr;
@@ -92,9 +92,9 @@ int main(int argc, char *argv[])
             {
                 struct ack_pkt *tmp_pkt = (ack_pkt *)malloc(sizeof(ack_pkt));
                 struct net_pkt *data_pkt = (net_pkt *)malloc(sizeof(net_pkt));
-                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) <= 0)
-                    continue;
-                one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // calculate oneway delay for each pkt
+                if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) <= 0) continue;
+                one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // [stat] calculate oneway delay for each pkt
+                total_pkts++;                                                                    // [stat] count pkts received
                 /* BLOCKED BY SVR */
                 if (data_pkt->seq == 0xffffffff)
                 {
@@ -126,8 +126,7 @@ int main(int argc, char *argv[])
                     long long unsigned int i = cum_seq;
                     for (; i < cum_seq + W_SIZE; i++)
                     { // acknowledging all sequential packets
-                        if (window.find(i) == window.end())
-                            break;
+                        if (window.find(i) == window.end()) break;
                         tmp_pkt->seq = i;
                     }
                     cum_seq = i; // update cum_seq outside the for-loop in case the entire window is filled (painful)
@@ -137,16 +136,10 @@ int main(int argc, char *argv[])
                 /* cache for timed delivery */
                 timetable[data_pkt->senderTS] = data_pkt->seq;
                 window[data_pkt->seq] = data_pkt;
-
-                data_pkts += 1;                 //[stat] success receive one pkt
-                data_bits += sizeof(*data_pkt); //[stat] success receive data in bits
-                if (data_pkt->seq > max_seq)
-                    max_seq = data_pkt->seq;          //[stat] record highest packet seq received
-                avg_delay += (one_delay) / data_pkts; //[stat] avg one delay per pkt
-                if (min_delay > one_delay)
-                    min_delay = one_delay; //[stat] min one delay
-                else if (max_delay < one_delay)
-                    max_delay = one_delay; //[stat] max one delay
+                lost_pkts += data_pkt->seq+1 - cum_seq;                                             //[stat] max seq pkt received
+                avg_delay = avg_delay / total_pkts * (total_pkts-1) + avg_delay / (total_pkts);     //[stat] avg delay
+                min_delay = min_delay > one_delay ? one_delay : min_delay;                          //[stat] min one delay
+                max_delay = max_delay < one_delay ? one_delay : max_delay;                          //[stat] max one delay
             }
         }
         else
@@ -166,9 +159,9 @@ int main(int argc, char *argv[])
         gettimeofday(&currentTime, NULL);
         if (currentTime.tv_sec - recordTime.tv_sec >= 5 && isStart)
         {
-            duration = currentTime.tv_sec - startTime.tv_sec;
-            duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
-            print_stat(duration, max_seq, data_bits, data_pkts, true, avg_delay, min_delay, max_delay, 0);
+            duration = currentTime.tv_sec - startTime.tv_sec + (currentTime.tv_usec - startTime.tv_usec) / 1000000;
+            print_stat(true, duration, max_seq, cum_seq, 
+                total_pkts > cum_seq ? total_pkts - cum_seq : cum_seq - total_pkts, lost_pkts, avg_delay, min_delay, max_delay);
             recordTime.tv_sec = currentTime.tv_sec;
             recordTime.tv_usec = currentTime.tv_usec;
         }

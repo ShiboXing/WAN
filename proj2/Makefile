@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS = -std=c++11 -c -Wall -pedantic -g 
-lr=5
-svr_ip=localhost#192.171.20.103
+lr=0
+svr_ip=192.170.230.101
 svr_port=5555
 rcv_app_port=4444
 svr_app_port=3333

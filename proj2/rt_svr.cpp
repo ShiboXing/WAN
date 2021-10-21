@@ -1,9 +1,11 @@
+
+#include <map>
+#include <iostream>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <map>
-
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -15,10 +17,9 @@
 #include "sendto_dbg.h"
 #include "stat_display.h"
 
-static int svr_port;
-static int app_port;
-static int loss_perc;
-static long long unsigned int cum_seq = 0, cache_seq = 1;
+using namespace std;
+
+static int svr_port, app_port, loss_perc;
 static map<long long unsigned int, chrono::steady_clock::time_point> timetable;
 static map<long long unsigned int, net_pkt *> window;
 
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
     fd_set read_mask, tmp_mask;
     socklen_t from_len = sizeof(client_addr);
     double duration;
-    long long unsigned int max_seq = 0, data_bits = 0, total_pkts = 0;
+    long long unsigned int max_seq = 0, total_pkts = 0, cum_seq = 0, cache_seq = 1;
     bool isStart = false;
 
     curr_client_addr.sin_addr.s_addr = 0;
@@ -127,7 +128,7 @@ int main(int argc, char *argv[])
                                 data_pkt->senderTS = timetable[tmp_pkt->seq];
                             sendto_dbg(client_soc, (char *)window[tmp_pkt->seq], sizeof(*data_pkt), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
                             max_seq = tmp_pkt->seq > max_seq ? tmp_pkt->seq : max_seq;  // [stat] record highest sent pkt seq
-                            total_pkts += 1;                                            // [stat] count sent pkts
+                            total_pkts ++;                                              // [stat] count sent pkts
                         }
                     }
                     else if (cum_seq < tmp_pkt->seq)
@@ -159,15 +160,15 @@ int main(int argc, char *argv[])
             gettimeofday(&currentTime, NULL);
             if (currentTime.tv_sec - recordTime.tv_sec >= 5 && isStart)
             {
-                duration = currentTime.tv_sec - startTime.tv_sec;
-                duration += (currentTime.tv_usec - startTime.tv_usec) / 1000000;
-                print_stat(duration, max_seq, cum_seq * sizeof(net_pkt), cum_seq, false, 0, 0, 0, total_pkts - cum_seq);
+                duration = currentTime.tv_sec - startTime.tv_sec + (currentTime.tv_usec - startTime.tv_usec) / 1000000;
+                print_stat(false, duration, max_seq, cum_seq, 
+                    total_pkts > cum_seq ? total_pkts - cum_seq : cum_seq - total_pkts, 0, .0, .0, .0);
                 recordTime.tv_sec = currentTime.tv_sec;
                 recordTime.tv_usec = currentTime.tv_usec;
             }
         }
         else
-            printf("%ld seconds, %d microseconds passed with no request or data received...\n", timeout.tv_sec, timeout.tv_usec);
+            cout << timeout.tv_sec << " seconds, " << timeout.tv_usec << " microseconds passed with no request or data received...\n";
     }
 
     return 0;
