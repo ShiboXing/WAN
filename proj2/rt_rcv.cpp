@@ -136,9 +136,9 @@ int main(int argc, char *argv[])
                 /* cache for timed delivery */
                 timetable[data_pkt->senderTS] = data_pkt->seq;
                 window[data_pkt->seq] = data_pkt;
-                lost_pkts += data_pkt->seq+1 - cum_seq;                                             //[stat] lost pkts tally
-                max_seq = max_seq > data_pkt->seq ? max_seq : data_pkt->seq;
-                avg_delay = avg_delay / total_pkts * (total_pkts-1) + one_delay / total_pkts;     //[stat] avg delay
+                lost_pkts += data_pkt->seq + 1 > cum_seq ? data_pkt->seq + 1 - cum_seq : 0;         //[stat] lost pkts tally
+                max_seq = max_seq > data_pkt->seq ? max_seq : data_pkt->seq;                        //[stat] update max_seq
+                avg_delay = avg_delay / total_pkts * (total_pkts-1) + one_delay / total_pkts;       //[stat] avg delay
                 min_delay = min_delay > one_delay ? one_delay : min_delay;                          //[stat] min one delay
                 max_delay = max_delay < one_delay ? one_delay : max_delay;                          //[stat] max one delay
             }
