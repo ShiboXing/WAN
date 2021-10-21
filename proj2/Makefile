@@ -24,6 +24,9 @@ run_stream:
 	./udp_stream localhost:${svr_app_port} 8000
 run_stream_rcv:
 	./udp_stream_rcv ${rcv_app_port}
+
+run_video:
+	~/video_demo/multicat/multicat-2.3/multicat -u -U ~/video_demo/yellowstone_elemental.ts 127.0.0.1:3333
 clean:
 	rm *.o
 	rm udp_stream
