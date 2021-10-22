@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
                 struct net_pkt *data_pkt = (net_pkt *)malloc(sizeof(net_pkt));
                 if (recvfrom(soc, data_pkt, sizeof(net_pkt), 0, NULL, NULL) <= 0) continue;
                 one_delay = chrono::duration_cast<MS>(Time::now() - data_pkt->senderTS).count(); // [stat] calculate oneway delay for each pkt
-                total_pkts++;                                                                    // [stat] count pkts received
                 /* BLOCKED BY SVR */
                 if (data_pkt->seq == 0xffffffff)
                 {
@@ -119,7 +118,7 @@ int main(int argc, char *argv[])
                         recordTime.tv_usec = startTime.tv_usec;
                         isStart = true;
                     }
-
+                    total_pkts++;      // [stat] count pkts received
                     tmp_pkt->is_nack = false;
                     tmp_pkt->seq = cum_seq;
                     cum_seq = tmp_pkt->seq + 1;
