@@ -1,10 +1,10 @@
 CC=g++
-CFLAGS = -std=c++11 -c -Wall -pedantic -g 
-lr=0 				    #loss_rate_percent
-srv_ip=192.170.230.101  #server_ip
-srv_port=5555 			#server_port
-rcv_app_port=4444 		#app_port
-srv_app_port=3333 		#client_port
+CFLAGS=-std=c++11 -c -Wall -pedantic -g 
+lr=0
+srv_ip=192.170.230.101
+srv_port=5555
+rcv_app_port=4444
+srv_app_port=3333
 
 all: udp_stream udp_stream_rcv rt_rcv rt_srv
 
