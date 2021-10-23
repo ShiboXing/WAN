@@ -25,7 +25,6 @@ static char *svr_ip;
 static int svr_port, app_port, loss_perc, delta = 0xffff;
 static map<chrono::steady_clock::time_point, long long unsigned int> timetable;
 static map<long long unsigned int, struct net_pkt *> window;
-static map<long long unsigned int, int> size_map;
 
 static void Usage(int argc, char *argv[]);
 static void Print_help();
