@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
                         if (window.find(i) == window.end()) break;
                         tmp_pkt->seq = i;
                     }
-                    cum_seq = i; // update cum_seq outside the for-loop in case the entire window is filled (painful)
+                    cum_seq = i; // update cum_seq outside the for-loop in case the entired window are in-order (painful)
                     sendto_dbg(soc, (char *)tmp_pkt, sizeof(*tmp_pkt), 0, (struct sockaddr *)&send_addr, sizeof(send_addr));
                 }
 
