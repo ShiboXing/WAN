@@ -1,27 +1,27 @@
 CC=g++
 CFLAGS = -std=c++11 -c -Wall -pedantic -g 
-lr=0
-svr_ip=192.170.230.101
-svr_port=5555
-rcv_app_port=4444
-svr_app_port=3333
+lr=0 				    #loss_rate_percent
+srv_ip=192.170.230.101  #server_ip
+srv_port=5555 			#server_port
+rcv_app_port=4444 		#app_port
+srv_app_port=3333 		#client_port
 
-all: udp_stream udp_stream_rcv rt_rcv rt_svr
+all: udp_stream udp_stream_rcv rt_rcv rt_srv
 
 rt_rcv: sendto_dbg.o stat_display.o rt_rcv.o
 		$(CC) -o rt_rcv rt_rcv.o sendto_dbg.o stat_display.o
-rt_svr: sendto_dbg.o stat_display.o rt_svr.o
-		$(CC) -o rt_svr rt_svr.o sendto_dbg.o stat_display.o
+rt_srv: sendto_dbg.o stat_display.o rt_srv.o
+		$(CC) -o rt_srv rt_srv.o sendto_dbg.o stat_display.o
 udp_stream: udp_stream.o
 	    $(CC) -o udp_stream udp_stream.o
 udp_stream_rcv: udp_stream_rcv.o
 	    $(CC) -o udp_stream_rcv udp_stream_rcv.o
 run_rcv: 
-	./rt_rcv $(lr) $(svr_ip):$(svr_port) $(rcv_app_port)
-run_svr:
-	./rt_svr $(lr) $(svr_app_port) $(svr_port)
+	./rt_rcv $(lr) $(srv_ip):$(srv_port) $(rcv_app_port)
+run_srv:
+	./rt_srv $(lr) $(srv_app_port) $(srv_port)
 run_stream:
-	./udp_stream localhost:${svr_app_port} 25000
+	./udp_stream localhost:${srv_app_port} 25000
 run_stream_rcv:
 	./udp_stream_rcv ${rcv_app_port}
 
@@ -32,7 +32,7 @@ clean:
 	rm udp_stream
 	rm udp_stream_rcv
 	rm rt_rcv
-	rm rt_svr
+	rm rt_srv
 
 %.o:    %.cpp
 	$(CC) $(CFLAGS) $*.cpp
