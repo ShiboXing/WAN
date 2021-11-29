@@ -116,4 +116,4 @@ if ! shopt -oq posix; then
   fi
 fi
 
-alias iperf='~/WAN/proj4/iperf-3.10.1/src/iperf3'
+alias iperf3='~/WAN/proj4/iperf-3.10.1/src/iperf3'
