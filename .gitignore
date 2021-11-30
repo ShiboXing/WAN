@@ -6,3 +6,7 @@
 *c_cpp_properties.json
 npc_payload
 rcv_payload
+
+
+conda/
+.ipynb_checkpoints/
