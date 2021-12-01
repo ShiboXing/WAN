@@ -17,7 +17,7 @@ else
     BBR_num=$2
     source exp1_setup.sh $1 $2
     
-    
+    # run on server
     if [[ "$HOST" == *"server"* ]]; 
         then
         mkdir -p "$res_pth"
@@ -29,6 +29,8 @@ else
         # run exp
         iperf3 -s -J -p $bbr_port > "${res_pth}/exp1_bbr_${BDP}_${BBR_num}.json" &
         iperf3 -s -J -p $loss_port > "${res_pth}/exp1_reno_${BDP}_${BBR_num}.json" &     
+    
+    # run on sender
     elif [[ "$HOST" == *"sender"* ]]; 
         then
         
