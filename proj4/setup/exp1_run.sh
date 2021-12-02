@@ -39,7 +39,7 @@ else
         lsof -i:$loss_port -t | xargs kill -9
         
         # run exp
-        iperf3 -c server -C bbr -p $bbr_port -t 200 -T "BBR" &
+        iperf3 -c server -C bbr -P $2 -p $bbr_port -t 200 -T "BBR" &
         iperf3 -c server -C reno -p $loss_port -t 200 -T "RENO" &        
     fi
 fi
