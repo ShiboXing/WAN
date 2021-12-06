@@ -14,8 +14,8 @@ fi
 # Step 2: set RTT to 40ms on sender
 if [[ "$HOST" == *"sender"* ]]; 
 	then
-	echo "setting eth1 RTT delay on sender to ${3}ms"
-	sudo tc qdisc add dev eth1 root netem delay $3ms
-	sudo tc qdisc replace dev eth1 root netem delay $3ms
+	echo "setting eth1 RTT delay on sender to ${2}ms"
+	sudo tc qdisc add dev eth1 root netem delay $2ms
+	sudo tc qdisc replace dev eth1 root netem delay $2ms
 fi
 
