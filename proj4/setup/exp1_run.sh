@@ -41,7 +41,7 @@ else
     elif [[ "$HOST" == *"sender"* ]]; 
         then
         
-        echo "running the experiments now $1 $2 $3 $4 $5"
+        echo "running the experiments now queue: $1 bbr_num: $2 reno_num: $3 bw: $4 rtt: $5"
         # run exp
         ~/WAN/proj4/iperf-3.10.1/src/iperf3 -c server -C bbr -P $2 -b $4mb -p $bbr_port -t 60 -T "BBR" -J > "${res_pth}/bbr_$1_$2_$3_$4_$5.json" &
         ~/WAN/proj4/iperf-3.10.1/src/iperf3 -c server -C reno -P $3 -b $4mb -p $loss_port -t 60 -T "RENO" -J > "${res_pth}/reno_$1_$2_$3_$4_$5.json" &       
