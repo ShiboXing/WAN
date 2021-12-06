@@ -6,9 +6,9 @@ source testbed_setup.sh
 # Step 2: set bottleneck queue on router
 if [[ "$HOST" == *"router"* ]]; 
 	then
-    queue=$(( $1 * 16 ))
-    echo "setting router queue to '$1' BDPs, ${queue} packets"
-    sudo tc qdisc replace dev eth0 root fq limit ${queue}
+    queue=$(( $1 * 200))
+    echo "setting router queue to '$1' BDPs, ${queue}kb"
+    sudo tc qdisc replace dev eth2 root tbf rate 8mbit limit ${queue}kb burst 10kb
 fi
 
 # Step 2: set RTT to 40ms on sender
