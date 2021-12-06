@@ -39,8 +39,8 @@ else
         lsof -i:$loss_port -t | xargs kill -9
         
         # run exp
-        iperf3 -s -J -p $bbr_port &
-        iperf3 -s -J -p $loss_port &     
+        iperf3 -s -p $bbr_port &
+        iperf3 -s -p $loss_port &     
     
     # run on sender
     elif [[ "$HOST" == *"sender"* ]]; 
