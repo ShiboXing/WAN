@@ -23,7 +23,8 @@ ott=$(( $3 / 2))
 if [[ "$HOST" == *"router"* ]]; 
 	then
     echo "setting router queue to '$1' BDPs, ${queue}kb"
-    sudo tc qdisc replace dev eth2 root tbf rate 6mbit limit ${queue}kb burst 10kb
+    echo "setting bandwidth limit to $2mbps"
+    sudo tc qdisc replace dev eth2 root tbf rate $2mbit limit ${queue}kb burst 10kb
     echo "setting router to sender single-trip time to ${ott}ms"
     sudo tc qdisc replace dev eth1 root netem delay ${ott}ms
 fi
