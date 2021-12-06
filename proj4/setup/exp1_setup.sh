@@ -6,7 +6,7 @@ source testbed_setup.sh
 # Step 2: set bottleneck queue on router
 if [[ "$HOST" == *"router"* ]]; 
 	then
-    queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 ))
+    queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 / 1000 ))
     echo "setting router queue to '$1' BDPs, ${queue}kb"
     sudo tc qdisc replace dev eth2 root tbf rate 8mbit limit ${queue}kb burst 10kb
 fi
