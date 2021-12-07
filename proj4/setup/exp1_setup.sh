@@ -21,7 +21,7 @@ fi
 rate=$(($2 * 1000))
 queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 / 1000 ))
 
-ott=$(( $3 / 2))
+ott=$3
 # Step 2: set bottleneck queue on router
 if [[ "$HOST" == *"router"* ]]; 
 	then
@@ -32,9 +32,3 @@ if [[ "$HOST" == *"router"* ]];
     sudo tc qdisc replace dev eth1 root netem delay ${ott}ms
 fi
 
-# Step 2: set RTT to 40ms on sender
-if [[ "$HOST" == *"sender"* ]]; 
-	then
-	echo "setting eth1 single-trip delay on sender to ${ott}ms"
-	sudo tc qdisc replace dev eth1 root netem delay ${ott}ms
-fi
