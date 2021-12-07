@@ -20,7 +20,7 @@ fi
 
 rate=$(($2 * 1000))
 queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 / 1000 ))
->>>>>>> d8c41984ae0cf7bc22d72e8f6972fdfd428c02b0
+
 ott=$(( $3 / 2))
 # Step 2: set bottleneck queue on router
 if [[ "$HOST" == *"router"* ]]; 
