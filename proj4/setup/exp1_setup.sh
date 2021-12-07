@@ -3,7 +3,7 @@
 # Step 1: set up testbed
 source testbed_setup.sh
 
-exp1_setup_help="usage: source exp1_setup [# of BDP] [bandwidth(mbits)] [RTT(ms)]"
+exp1_setup_help="usage: source exp1_setup [# of BDP] [bandwidth(mbits)] [RTT(ms)] [divisor (for fraction BDP)]"
 
 # check parameters
 if [ -z "$1" ] 
@@ -15,11 +15,14 @@ elif [ -z "$2" ]
 elif [ -z "$3" ] 
     then
     echo $exp1_setup_help
+elif [ -z "$4" ] 
+    then
+    echo $exp1_setup_help
 fi
 
 
 rate=$(($2 * 1000))
-queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 / 1000 ))
+queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 / 1000 / $4))
 
 ott=$3
 # Step 2: set bottleneck queue on router

@@ -26,7 +26,7 @@ else
     reno_num=$3
     bw=$4
     RTT=$5
-    source exp1_setup.sh $1 $4 $5
+    source exp1_setup.sh $1 $4 $5 1
     mkdir -p "$res_pth"
     
     # run on server
