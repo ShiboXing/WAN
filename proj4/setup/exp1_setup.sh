@@ -17,7 +17,7 @@ elif [ -z "$3" ]
     echo $exp1_setup_help
 fi
 
-queue=$(( $2 * 1000000 / 1000 * $3 * $1 / 1000 ))
+queue=$(( $2 * 1000000 / 1000 * $3/2 * $1 / 1000 ))
 ott=$(( $3 / 2))
 # Step 2: set bottleneck queue on router
 if [[ "$HOST" == *"router"* ]]; 
