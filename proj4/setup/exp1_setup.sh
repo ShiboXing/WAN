@@ -3,7 +3,7 @@
 # Step 1: set up testbed
 source testbed_setup.sh
 
-exp1_setup_help="usage: source exp1_setup [# of BDP] [bandwidth(mbits)] [RTT(ms)] [divisor (for fraction BDP)]"
+exp1_setup_help="usage: source exp1_setup [# of BDP] [bandwidth(mbits)] [RTT(ms)] [divisor (for fraction BDP)] [loss_rate(%)]"
 
 # check parameters
 if [ -z "$1" ] 
@@ -16,6 +16,9 @@ elif [ -z "$3" ]
     then
     echo $exp1_setup_help
 elif [ -z "$4" ] 
+    then
+    echo $exp1_setup_help
+elif [ -z "$5" ] 
     then
     echo $exp1_setup_help
 fi
@@ -32,6 +35,6 @@ if [[ "$HOST" == *"router"* ]];
     echo "setting bandwidth limit to $2mbps, ${rate}kbps"
     sudo tc qdisc replace dev eth2 root tbf rate ${rate}kbit limit ${queue}kb burst 10kb
     echo "setting router to sender single-trip time to ${ott}ms"
-    sudo tc qdisc replace dev eth1 root netem delay ${ott}ms
+    sudo tc qdisc replace dev eth1 root netem delay ${ott}ms loss $5
 fi
 
