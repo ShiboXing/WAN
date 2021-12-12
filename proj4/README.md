@@ -81,7 +81,7 @@ $ source exp1_kill.sh #reset tc qdisc and kill any program that occpied the port
 $ source testbed_setup.sh #alias iperf3 and jupyternotebook, hostname
 
 $ source exp1_run.sh 1 1 1 1 1 1 # usage: source exp1_run.sh [queue(# of BDPs)] [# of BBRs] [# of Renos] [bandwidth(mbps)] [RTT(ms)] [duration(s)]
-Server don't need those parameters to start, you can put any number other than 1 as long as there are 6 parameters
+# Server don't need those parameters to start, you can put any number other than 1 as long as there are 6 parameters
 ```
 
 After servers started, detach screen session or simply just leave it there, we won't need to do anything with server node until the experiements are finished 
