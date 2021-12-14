@@ -198,7 +198,7 @@ $ mv *.json all_{current loss rate}
 ```
 4. Reset the loss rate parameter in router to the next number in list *loss_rate*, the second number is 2. 
 
-5. Repeat procedure 2 and 3 until finish all the loss rate in list *loss_rate*
+5. Repeat procedure 2 to 4 until finish all the loss rate in list *loss_rate*
 
 
 
