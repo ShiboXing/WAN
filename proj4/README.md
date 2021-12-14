@@ -193,8 +193,8 @@ For extend experiment 2
 3. After experiment finished,run 
 ``` console
 $ cd iperf3_results
-$ mkdir all_loss_{current BDP number} #all_loss_1 for first experiment
-$ mv *.json all_{current BDP number}
+$ mkdir all_loss_{current loss rate} #all_loss_1 for first experiment
+$ mv *.json all_{current loss rate}
 ```
 4. Reset the loss rate parameter in router to the next number in list *loss_rate*, the second number is 2. 
 
