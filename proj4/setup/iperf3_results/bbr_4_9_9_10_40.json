@@ -1,0 +1,113 @@
+{
+	"start":	{
+		"connected":	[{
+				"socket":	5,
+				"local_host":	"10.10.1.1",
+				"local_port":	38290,
+				"remote_host":	"10.10.2.2",
+				"remote_port":	5001
+			}],
+		"version":	"iperf 3.10.1",
+		"system_info":	"Linux sender.qyl-project1.ch-geni-net.geni.uchicago.edu 4.15.0-159-generic #167-Ubuntu SMP Tue Sep 21 08:55:05 UTC 2021 x86_64",
+		"timestamp":	{
+			"time":	"Tue, 14 Dec 2021 19:56:14 GMT",
+			"timesecs":	1639511774
+		},
+		"connecting_to":	{
+			"host":	"server",
+			"port":	5001
+		},
+		"cookie":	"33f3hvrykoxmmlwg4xl4yo3aewiwn6uf3vw4",
+		"tcp_mss_default":	1448,
+		"sock_bufsize":	0,
+		"sndbuf_actual":	16384,
+		"rcvbuf_actual":	131072,
+		"sock_bufsize":	0,
+		"sndbuf_actual":	16384,
+		"rcvbuf_actual":	131072
+	},
+	"intervals":	[{
+			"streams":	[{
+					"socket":	5,
+					"start":	0,
+					"end":	687696.69507,
+					"seconds":	687696.6875,
+					"bytes":	0,
+					"bits_per_second":	0,
+					"retransmits":	0,
+					"snd_cwnd":	15928,
+					"snd_wnd":	-1,
+					"rtt":	41112,
+					"rttvar":	15438,
+					"pmtu":	1500,
+					"omitted":	false,
+					"sender":	true
+				}],
+			"sum":	{
+				"start":	0,
+				"end":	687696.69507,
+				"seconds":	687696.6875,
+				"bytes":	0,
+				"bits_per_second":	0,
+				"retransmits":	0,
+				"omitted":	false,
+				"sender":	true
+			}
+		}],
+	"end":	{
+		"streams":	[{
+				"sender":	{
+					"socket":	5,
+					"start":	0,
+					"end":	687696.69507,
+					"seconds":	687696.69507,
+					"bytes":	0,
+					"bits_per_second":	0,
+					"retransmits":	0,
+					"max_snd_cwnd":	15928,
+					"max_snd_wnd":	0,
+					"max_rtt":	41112,
+					"min_rtt":	41112,
+					"mean_rtt":	41112,
+					"sender":	true
+				},
+				"receiver":	{
+					"socket":	5,
+					"start":	0,
+					"end":	687696.69507,
+					"seconds":	687696.69507,
+					"bytes":	0,
+					"bits_per_second":	0,
+					"sender":	true
+				}
+			}],
+		"sum_sent":	{
+			"start":	0,
+			"end":	687696.69507,
+			"seconds":	687696.69507,
+			"bytes":	0,
+			"bits_per_second":	0,
+			"retransmits":	0,
+			"sender":	true
+		},
+		"sum_received":	{
+			"start":	0,
+			"end":	687696.69507,
+			"seconds":	687696.69507,
+			"bytes":	0,
+			"bits_per_second":	0,
+			"sender":	true
+		},
+		"cpu_utilization_percent":	{
+			"host_total":	0.15693651846378734,
+			"host_user":	0,
+			"host_system":	0.15685246033927541,
+			"remote_total":	0,
+			"remote_user":	0,
+			"remote_system":	0
+		},
+		"sender_tcp_congestion":	"bbr"
+	},
+	"error":	"interrupt - the client has terminated",
+	"title":	"BBR"
+}

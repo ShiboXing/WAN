@@ -1,0 +1,38 @@
+{
+	"start":	{
+		"connected":	[],
+		"version":	"iperf 3.10.1",
+		"system_info":	"Linux sender.qyl-project1.ch-geni-net.geni.uchicago.edu 4.15.0-159-generic #167-Ubuntu SMP Tue Sep 21 08:55:05 UTC 2021 x86_64"
+	},
+	"intervals":	[],
+	"end":	{
+		"streams":	[],
+		"sum_sent":	{
+			"start":	0,
+			"end":	0,
+			"seconds":	0,
+			"bytes":	0,
+			"bits_per_second":	0,
+			"retransmits":	0,
+			"sender":	true
+		},
+		"sum_received":	{
+			"start":	0,
+			"end":	0,
+			"seconds":	0,
+			"bytes":	0,
+			"bits_per_second":	0,
+			"sender":	true
+		},
+		"cpu_utilization_percent":	{
+			"host_total":	5.00825842233382e-06,
+			"host_user":	1.6702435675853392e-06,
+			"host_system":	3.3406325634308076e-06,
+			"remote_total":	0,
+			"remote_user":	0,
+			"remote_system":	0
+		}
+	},
+	"error":	"interrupt - the client has terminated",
+	"title":	"BBR"
+}
