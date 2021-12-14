@@ -7,7 +7,6 @@
 import pandas as pd, json
 import numpy as np
 import matplotlib.pyplot as plt
-from ipdb import set_trace
 from statsmodels.regression import linear_model
 from scipy import stats
 
