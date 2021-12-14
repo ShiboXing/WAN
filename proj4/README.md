@@ -182,7 +182,7 @@ $ mv *.json all_{current BDP number}
 
 4. After change the q_ind and router, run the block 1~4 again to run the next experiment.
 
-5. Keep doing procedure 2 and 3 until finish the experiment when q_ind = 6, which is the last element in list *queues* and list *times*
+5. Keep doing procedure 2 to 4 until finish the experiment when q_ind = 6, which is the last element in list *queues* and list *times*
 
 For extend experiment 2
 
