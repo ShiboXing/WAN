@@ -182,7 +182,7 @@ $ mv *.json all_{current BDP number}
 
 4. After change the q_ind and router, run the block 1~4 again to run the next experiment.
 
-5. Keep doing procedure 2 and 3 until finish the experiment when q_ind = 6, which is the last element in list *queues* and list *times*
+5. Keep doing procedure 2 to 4 until finish the experiment when q_ind = 6, which is the last element in list *queues* and list *times*
 
 For extend experiment 2
 
@@ -193,12 +193,12 @@ For extend experiment 2
 3. After experiment finished,run 
 ``` console
 $ cd iperf3_results
-$ mkdir all_loss_{current BDP number} #all_loss_1 for first experiment
-$ mv *.json all_{current BDP number}
+$ mkdir all_loss_{current loss rate} #all_loss_1 for first experiment
+$ mv *.json all_{current loss rate}
 ```
 4. Reset the loss rate parameter in router to the next number in list *loss_rate*, the second number is 2. 
 
-5. Repeat procedure 2 and 3 until finish all the loss rate in list *loss_rate*
+5. Repeat procedure 2 to 4 until finish all the loss rate in list *loss_rate*
 
 
 
