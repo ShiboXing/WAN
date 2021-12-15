@@ -37,16 +37,16 @@ else
         then
         
         # run exp
-        iperf3 -s -p $bbr_port &
-        iperf3 -s -p $loss_port &     
+        ~/proj4/iperf-3.10.1/src/iperf3 -s -p $bbr_port &
+        ~/proj4/iperf-3.10.1/src/iperf3 -s -p $loss_port &     
     
     # run on sender
     elif [[ "$HOST" == *"sender"* ]]; 
         then
         echo "running the experiments now queue: $1 bbr_num: $2 cubic_num: $3 bw: $bw rtt: $5"
         # run exp
-        iperf3 -c server -C bbr -P $2 -p $bbr_port -t $6 -T "BBR" -J > "${res_pth}/bbr_$1_$2_$3_$4_$5.json" &
-        iperf3 -c server -C cubic -P $3 -p $loss_port -t $6 -T "CUBIC" -J > "${res_pth}/cubic_$1_$2_$3_$4_$5.json" &    
+        ~/proj4/iperf-3.10.1/src/iperf3 -c server -C bbr -P $2 -p $bbr_port -t $6 -T "BBR" -J > "${res_pth}/bbr_$1_$2_$3_$4_$5.json" &
+        ~/proj4/iperf-3.10.1/src/iperf3 -c server -C cubic -P $3 -p $loss_port -t $6 -T "CUBIC" -J > "${res_pth}/cubic_$1_$2_$3_$4_$5.json" &    
         
     fi
 fi
