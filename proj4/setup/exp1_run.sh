@@ -1,7 +1,7 @@
 #!/bin/bash
 help="usage: source exp1_run.sh [queue(# of BDPs)] [# of BBRs] [# of Renos] [bandwidth(mbps)] [RTT(ms)] [duration(s)]"
 res_pth="./iperf3_results"
-alias iperf3="~/WAN/proj4/iperf-3.10.1/src/iperf3"
+alias iperf3="~/proj4/iperf-3.10.1/src/iperf3"
 
 # check parameters
 if [ -z "$1" ] 
@@ -45,8 +45,8 @@ else
         then
         echo "running the experiments now queue: $1 bbr_num: $2 cubic_num: $3 bw: $bw rtt: $5"
         # run exp
-        ~/WAN/proj4/iperf-3.10.1/src/iperf3 -c server -C bbr -P $2 -p $bbr_port -t $6 -T "BBR" -J > "${res_pth}/bbr_$1_$2_$3_$4_$5.json" &
-        ~/WAN/proj4/iperf-3.10.1/src/iperf3 -c server -C cubic -P $3 -p $loss_port -t $6 -T "CUBIC" -J > "${res_pth}/cubic_$1_$2_$3_$4_$5.json" &    
+        iperf3 -c server -C bbr -P $2 -p $bbr_port -t $6 -T "BBR" -J > "${res_pth}/bbr_$1_$2_$3_$4_$5.json" &
+        iperf3 -c server -C cubic -P $3 -p $loss_port -t $6 -T "CUBIC" -J > "${res_pth}/cubic_$1_$2_$3_$4_$5.json" &    
         
     fi
 fi
