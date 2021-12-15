@@ -6,7 +6,7 @@ loss_port=5002
 #	net.ipv4.tcp_congestion_control=bbr
 
 # aliasing programs
-alias iperf3="~/WAN/proj4/iperf-3.10.1/src/iperf3"
+alias iperf3="~/proj4/iperf-3.10.1/src/iperf3"
 alias init_exp="jupyter notebook --no-browser --port=8008 &"
 
 # TESTBED SETUP
