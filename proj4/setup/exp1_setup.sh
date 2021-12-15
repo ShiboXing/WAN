@@ -29,7 +29,7 @@ else
 	# Step 2: set bottleneck queue on router
 	if [[ "$HOST" == *"router"* ]]; 
 		then
-	    echo "setting router queue to '$1' BDPs, ${queue}kb"
+	    echo "setting router queue to $1/$4 BDPs, ${queue}kb"
 	    echo "setting bandwidth limit to $2mbps, ${rate}kbps"
 	    sudo tc qdisc replace dev eth2 root tbf rate ${rate}kbit limit ${queue}kb burst 10kb
 	    echo "setting router to sender single-trip time to ${ott}ms"
