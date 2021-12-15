@@ -93,7 +93,7 @@ Run the source command on exp1_kill.sh to reset tc qdisc
 $ source exp1_kill.sh 
 ```
 
-## Validation Experiment and extend Experinment 1
+## Validation Experiment 1, 2
 We need to change the queue size for each experiment on router
 
 For example, our first experiment is to compare 1-33 BBR vs 1-33 Cubic in 0.25 BDP queue size, 10 mbits bandwidth and 40ms one way delay from router to sender to hold all ACKs <br/>
@@ -109,7 +109,7 @@ And loss rate is for extend experiment 2,it is set to 0 for validation experimen
 
 Basically, for validation experiment and extend experiment 1, the parameters only need to change is number of BDP and divisor, the remain parameters can remain unchange.
 
-## Extend Experinment 2
+## Extend Experinment 1
 Run the source exp1_kill.sh to reset tc qdisc, and run the following command
 ```console
 $ source exp1_setup.sh 4 10 40 1 1
@@ -139,21 +139,6 @@ $ init_exp
 Then the notebook is started and operate in background
 
 ```console
-(base) qil77@sender:~/WAN/proj4/setup$ init_exp
-[1] 618
-(base) qil77@sender:~/WAN/proj4/setup$ [W 2021-12-11 17:03:53.729 LabApp] 'port' has moved from NotebookApp to ServerApp. This config will be passed to ServerApp. Be sure to update your config before our next release.
-[W 2021-12-11 17:03:53.734 LabApp] 'port' has moved from NotebookApp to ServerApp. This config will be passed to ServerApp. Be sure to update your config before our next release.
-[W 2021-12-11 17:03:53.734 LabApp] 'port' has moved from NotebookApp to ServerApp. This config will be passed to ServerApp. Be sure to update your config before our next release.
-[I 2021-12-11 17:03:53.756 LabApp] JupyterLab extension loaded from /users/qil77/anaconda3/lib/python3.9/site-packages/jupyterlab
-[I 2021-12-11 17:03:53.758 LabApp] JupyterLab application directory is /users/qil77/anaconda3/share/jupyter/lab
-[I 17:03:53.769 NotebookApp] The port 8008 is already in use, trying another port.
-[I 17:03:53.771 NotebookApp] Serving notebooks from local directory: /users/qil77/WAN/proj4/setup
-[I 17:03:53.773 NotebookApp] Jupyter Notebook 6.4.5 is running at:
-[I 17:03:53.776 NotebookApp] http://localhost:8009/?token=dda8c330b9e2621b820c3198a961e0b83ba1716aac4047d9
-[I 17:03:53.776 NotebookApp]  or http://127.0.0.1:8009/?token=dda8c330b9e2621b820c3198a961e0b83ba1716aac4047d9
-[I 17:03:53.776 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
-[C 17:03:53.785 NotebookApp] 
-    
     To access the notebook, open this file in a browser:
         file:///users/qil77/.local/share/jupyter/runtime/nbserver-618-open.html
     Or copy and paste one of these URLs:
@@ -164,9 +149,11 @@ Copy and paste URL in browser to access the notebook
 
 **Run the script**
 
-Open Data_Collector.ipynb
 
-For validation experiment and extend experiment 1
+
+For validation experiment 1 & 2
+
+Open Data_Collector_1.ipynb
 
 1. Change q_ind start from 0 in block 2, and then Run block 1~4
 This will start the experiment for 1-33 BBR vs 1-33 Cubic respectively in 0.25 BDP, 10 mbits, 40ms, each competition run 60 seconds and then sleep 5 seconds to next competition. each experiment generate 81 competitions and 162 json files as results.
@@ -184,11 +171,11 @@ $ mv *.json all_{current BDP number}
 
 5. Keep doing procedure 2 to 4 until finish the experiment when q_ind = 6, which is the last element in list *queues* and list *times*
 
-For extend experiment 2
+For the extended experiment
 
 1. Set router as instruction in router section for experiment 2
 
-2. Run block 5~6 in EXP3 data collection, it generate 4 competitions and 8 json files as results.
+2. Run Data_Collector_2.ipynb
 
 3. After experiment finished,run 
 ``` console

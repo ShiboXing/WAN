@@ -33,8 +33,11 @@ else
 	    echo "setting bandwidth limit to $2mbps, ${rate}kbps"
 	    sudo tc qdisc replace dev eth2 root tbf rate ${rate}kbit limit ${queue}kb burst 10kb
 	    echo "setting router to sender single-trip time to ${ott}ms"
-	    echo "setting router loss rate to ${5} percent"
-	    sudo tc qdisc replace dev eth1 root netem delay ${ott}ms loss $5
+            if [[ "$5" != 0 ]];
+                then
+                echo "setting router loss rate to ${5} percent"
+                sudo tc qdisc replace dev eth1 root netem delay ${ott}ms loss $5
+            fi	
 	fi
 fi
 
